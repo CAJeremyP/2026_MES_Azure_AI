@@ -63,11 +63,30 @@ This document catalogues known risks, their likelihood, impact, and mitigations.
 
 ---
 
-### R5 — Azure Subscription Quota Limits
+### R5 — Azure SQL Regional Provisioning Restriction *(Known — already encountered)*
+**Likelihood:** High (common on MSDN, Visual Studio, and many EA subscriptions)  
+**Impact:** High — deployment fails with `ProvisioningDisabled` error  
+
+**Description:** Azure SQL Server provisioning is restricted in `eastus` (and some other regions) on certain subscription types. The Bicep deployment fails with:  
+`"Provisioning is restricted in this region. Please choose a different region."`
+
+**Fix (already implemented in this repo):**
+- `infra/main.bicep` has a separate `sqlLocation` parameter (defaults to `eastus2`) independent of the main `location` parameter
+- `scripts/deploy.sh` auto-probes a priority list of regions using `az deployment group what-if` and picks the first available one
+- Probe order: `eastus2 → westus2 → westus3 → centralus → southcentralus → northcentralus → westeurope → northeurope → uksouth → australiaeast → japaneast`
+- If `SQL_LOCATION` is already set in `.env`, that region is tried first (skips the full probe)
+
+**Manual override (fastest fix):** Add `SQL_LOCATION=eastus2` to `.env` before running `deploy.sh`.
+
+**Verified safe regions:** `eastus2`, `westus2`, `westus3`, `centralus`
+
+---
+
+### R5b — Azure Subscription Quota Limits
 **Likelihood:** Low–Medium  
 **Impact:** High — services may not deploy or may throttle during demo  
 
-**Description:** Some Azure subscriptions (especially free/trial accounts) have limits on the number of Cognitive Services resources, total regions, or compute cores. Trial subscriptions have a $200 credit limit and may restrict resource creation.
+**Description:** Some Azure subscriptions (especially free/trial accounts) have limits on the number of Cognitive Services resources, total regions, or compute cores.
 
 **Mitigation:**
 - Use a paid (PAYG or EA) Azure subscription for the demo

@@ -94,16 +94,16 @@ def run_pipeline(image_path: Path):
     print("━" * 54)
     db = DatabaseClient()
     db.ensure_tables()
-    run_db_id = db.insert_run(run_id, str(image_path), blob_url)
-    db.insert_vision_results(run_db_id, vision_results)
-    db.insert_doc_results(run_db_id, doc_results.get("lines", []))
-    print(f"  ✅  Saved run #{run_db_id} to database\n")
+    db.insert_run(run_id, str(image_path), blob_url)
+    db.insert_vision_results(run_id, vision_results)
+    db.insert_doc_results(run_id, doc_results.get("lines", []))
+    print(f"  ✅  Saved run {run_id} to database\n")
 
     # ── Step 5: Display summary ───────────────────────────────
     print("━" * 54)
     print("  STEP 5 ▶  Results Summary")
     print("━" * 54)
-    db.print_run_summary(run_db_id)
+    db.print_run_summary(run_id)
     print()
 
     # ── Step 6: Cost review ───────────────────────────────────
