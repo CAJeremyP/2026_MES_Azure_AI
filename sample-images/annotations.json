@@ -1,0 +1,802 @@
+[
+  {
+    "file": "circle_01.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.175,
+      "top": 0.175,
+      "width": 0.6499999999999999,
+      "height": 0.6499999999999999
+    }
+  },
+  {
+    "file": "circle_02.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.125,
+      "top": 0.15,
+      "width": 0.35,
+      "height": 0.35
+    }
+  },
+  {
+    "file": "circle_03.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.5125,
+      "top": 0.4875,
+      "width": 0.42500000000000004,
+      "height": 0.425
+    }
+  },
+  {
+    "file": "circle_04.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.125,
+      "top": 0.375,
+      "width": 0.5,
+      "height": 0.5
+    }
+  },
+  {
+    "file": "circle_05.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.425,
+      "top": 0.15,
+      "width": 0.45,
+      "height": 0.44999999999999996
+    }
+  },
+  {
+    "file": "circle_06.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.0875,
+      "top": 0.0875,
+      "width": 0.32499999999999996,
+      "height": 0.32499999999999996
+    }
+  },
+  {
+    "file": "circle_07.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.475,
+      "top": 0.475,
+      "width": 0.525,
+      "height": 0.525
+    }
+  },
+  {
+    "file": "circle_08.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.3125,
+      "top": 0.1875,
+      "width": 0.375,
+      "height": 0.375
+    }
+  },
+  {
+    "file": "circle_09.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.1875,
+      "top": 0.4375,
+      "width": 0.475,
+      "height": 0.475
+    }
+  },
+  {
+    "file": "circle_10.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.375,
+      "top": 0.3,
+      "width": 0.4,
+      "height": 0.39999999999999997
+    }
+  },
+  {
+    "file": "circle_11.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.05,
+      "top": 0.2,
+      "width": 0.6,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "circle_12.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.475,
+      "top": 0.3,
+      "width": 0.30000000000000004,
+      "height": 0.3
+    }
+  },
+  {
+    "file": "circle_13.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.1875,
+      "top": 0.4875,
+      "width": 0.525,
+      "height": 0.5125
+    }
+  },
+  {
+    "file": "circle_14.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.33,
+      "top": 0.105,
+      "width": 0.44,
+      "height": 0.44000000000000006
+    }
+  },
+  {
+    "file": "circle_15.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.1125,
+      "top": 0.1625,
+      "width": 0.575,
+      "height": 0.5750000000000001
+    }
+  },
+  {
+    "file": "circle_16.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.32,
+      "top": 0.445,
+      "width": 0.36000000000000004,
+      "height": 0.36000000000000004
+    }
+  },
+  {
+    "file": "circle_17.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.08,
+      "top": 0.155,
+      "width": 0.48999999999999994,
+      "height": 0.49
+    }
+  },
+  {
+    "file": "circle_18.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.495,
+      "top": 0.345,
+      "width": 0.41000000000000003,
+      "height": 0.41000000000000003
+    }
+  },
+  {
+    "file": "circle_19.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.305,
+      "top": 0.18,
+      "width": 0.34,
+      "height": 0.34
+    }
+  },
+  {
+    "file": "circle_20.png",
+    "tag": "circle",
+    "box": {
+      "left": 0.37,
+      "top": 0.42,
+      "width": 0.45999999999999996,
+      "height": 0.46
+    }
+  },
+  {
+    "file": "rectangle_01.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.15,
+      "top": 0.15,
+      "width": 0.7,
+      "height": 0.7
+    }
+  },
+  {
+    "file": "rectangle_02.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.25,
+      "top": 0.2,
+      "width": 0.65,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "rectangle_03.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.0,
+      "top": 0.1153805922287441,
+      "width": 0.8846194077712559,
+      "height": 0.8846194077712559
+    }
+  },
+  {
+    "file": "rectangle_04.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.2,
+      "top": 0.1,
+      "width": 0.7250000000000001,
+      "height": 0.725
+    }
+  },
+  {
+    "file": "rectangle_05.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.05,
+      "top": 0.3,
+      "width": 0.725,
+      "height": 0.6499999999999999
+    }
+  },
+  {
+    "file": "rectangle_06.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.16538059222874413,
+      "top": 0.1653805922287441,
+      "width": 0.8346194077712559,
+      "height": 0.8346194077712559
+    }
+  },
+  {
+    "file": "rectangle_07.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.1,
+      "top": 0.1,
+      "width": 0.7000000000000001,
+      "height": 0.5
+    }
+  },
+  {
+    "file": "rectangle_08.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.05,
+      "top": 0.4,
+      "width": 0.8999999999999999,
+      "height": 0.5
+    }
+  },
+  {
+    "file": "rectangle_09.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.11109127034739888,
+      "top": 0.0,
+      "width": 0.7778174593052023,
+      "height": 0.6889087296526012
+    }
+  },
+  {
+    "file": "rectangle_10.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.15,
+      "top": 0.4,
+      "width": 0.7,
+      "height": 0.5499999999999999
+    }
+  },
+  {
+    "file": "rectangle_11.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.25,
+      "top": 0.25,
+      "width": 0.5,
+      "height": 0.5
+    }
+  },
+  {
+    "file": "rectangle_12.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.0,
+      "top": 0.0,
+      "width": 1.0,
+      "height": 1.0
+    }
+  },
+  {
+    "file": "rectangle_13.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.05,
+      "top": 0.2,
+      "width": 0.6,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "rectangle_14.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.3,
+      "top": 0.1,
+      "width": 0.6499999999999999,
+      "height": 0.55
+    }
+  },
+  {
+    "file": "rectangle_15.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.14644660940672624,
+      "top": 0.14644660940672627,
+      "width": 0.7071067811865475,
+      "height": 0.7071067811865475
+    }
+  },
+  {
+    "file": "rectangle_16.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.1,
+      "top": 0.05,
+      "width": 0.8,
+      "height": 0.45
+    }
+  },
+  {
+    "file": "rectangle_17.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.15,
+      "top": 0.5,
+      "width": 0.7,
+      "height": 0.44999999999999996
+    }
+  },
+  {
+    "file": "rectangle_18.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.0,
+      "top": 0.0,
+      "width": 0.8419417382415922,
+      "height": 0.8169417382415922
+    }
+  },
+  {
+    "file": "rectangle_19.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.25,
+      "top": 0.35,
+      "width": 0.65,
+      "height": 0.55
+    }
+  },
+  {
+    "file": "rectangle_20.png",
+    "tag": "rectangle",
+    "box": {
+      "left": 0.1,
+      "top": 0.2,
+      "width": 0.6,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "triangle_01.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.175,
+      "top": 0.1,
+      "width": 0.6499999999999999,
+      "height": 0.8
+    }
+  },
+  {
+    "file": "triangle_02.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.125,
+      "top": 0.15,
+      "width": 0.5,
+      "height": 0.7
+    }
+  },
+  {
+    "file": "triangle_03.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.375,
+      "top": 0.125,
+      "width": 0.6,
+      "height": 0.75
+    }
+  },
+  {
+    "file": "triangle_04.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.275,
+      "top": 0.2,
+      "width": 0.44999999999999996,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "triangle_05.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.075,
+      "top": 0.075,
+      "width": 0.75,
+      "height": 0.8500000000000001
+    }
+  },
+  {
+    "file": "triangle_06.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.275,
+      "top": 0.175,
+      "width": 0.5499999999999999,
+      "height": 0.6499999999999999
+    }
+  },
+  {
+    "file": "triangle_07.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.05,
+      "top": 0.125,
+      "width": 0.7,
+      "height": 0.775
+    }
+  },
+  {
+    "file": "triangle_08.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.35,
+      "top": 0.1,
+      "width": 0.5,
+      "height": 0.775
+    }
+  },
+  {
+    "file": "triangle_09.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.175,
+      "top": 0.15,
+      "width": 0.6000000000000001,
+      "height": 0.7
+    }
+  },
+  {
+    "file": "triangle_10.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.2,
+      "top": 0.1125,
+      "width": 0.6499999999999999,
+      "height": 0.8125
+    }
+  },
+  {
+    "file": "triangle_11.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.175,
+      "top": 0.1,
+      "width": 0.6499999999999999,
+      "height": 0.8250000000000001
+    }
+  },
+  {
+    "file": "triangle_12.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.125,
+      "top": 0.15,
+      "width": 0.5,
+      "height": 0.75
+    }
+  },
+  {
+    "file": "triangle_13.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.375,
+      "top": 0.125,
+      "width": 0.6,
+      "height": 0.75
+    }
+  },
+  {
+    "file": "triangle_14.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.275,
+      "top": 0.2,
+      "width": 0.44999999999999996,
+      "height": 0.6000000000000001
+    }
+  },
+  {
+    "file": "triangle_15.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.075,
+      "top": 0.075,
+      "width": 0.75,
+      "height": 0.8500000000000001
+    }
+  },
+  {
+    "file": "triangle_16.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.275,
+      "top": 0.175,
+      "width": 0.5499999999999999,
+      "height": 0.6499999999999999
+    }
+  },
+  {
+    "file": "triangle_17.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.05,
+      "top": 0.125,
+      "width": 0.7,
+      "height": 0.775
+    }
+  },
+  {
+    "file": "triangle_18.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.35,
+      "top": 0.1,
+      "width": 0.5,
+      "height": 0.775
+    }
+  },
+  {
+    "file": "triangle_19.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.175,
+      "top": 0.15,
+      "width": 0.6000000000000001,
+      "height": 0.7
+    }
+  },
+  {
+    "file": "triangle_20.png",
+    "tag": "triangle",
+    "box": {
+      "left": 0.2,
+      "top": 0.1125,
+      "width": 0.6499999999999999,
+      "height": 0.8125
+    }
+  },
+  {
+    "file": "text_01.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0375,
+      "top": 0.0625,
+      "width": 0.8275,
+      "height": 0.35
+    }
+  },
+  {
+    "file": "text_02.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0625,
+      "top": 0.1,
+      "width": 0.535,
+      "height": 0.36750000000000005
+    }
+  },
+  {
+    "file": "text_03.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0875,
+      "top": 0.1375,
+      "width": 0.69,
+      "height": 0.4025
+    }
+  },
+  {
+    "file": "text_04.png",
+    "tag": "text",
+    "box": {
+      "left": 0.1125,
+      "top": 0.0625,
+      "width": 0.7474999999999999,
+      "height": 0.43
+    }
+  },
+  {
+    "file": "text_05.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0375,
+      "top": 0.1,
+      "width": 0.72,
+      "height": 0.4425
+    }
+  },
+  {
+    "file": "text_06.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0625,
+      "top": 0.1375,
+      "width": 0.48250000000000004,
+      "height": 0.35
+    }
+  },
+  {
+    "file": "text_07.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0875,
+      "top": 0.0625,
+      "width": 0.605,
+      "height": 0.3775
+    }
+  },
+  {
+    "file": "text_08.png",
+    "tag": "text",
+    "box": {
+      "left": 0.1125,
+      "top": 0.1,
+      "width": 0.6549999999999999,
+      "height": 0.48
+    }
+  },
+  {
+    "file": "text_09.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0375,
+      "top": 0.1375,
+      "width": 0.6575,
+      "height": 0.41750000000000004
+    }
+  },
+  {
+    "file": "text_10.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0625,
+      "top": 0.0625,
+      "width": 0.725,
+      "height": 0.4425
+    }
+  },
+  {
+    "file": "text_11.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0875,
+      "top": 0.1,
+      "width": 0.43999999999999995,
+      "height": 0.35
+    }
+  },
+  {
+    "file": "text_12.png",
+    "tag": "text",
+    "box": {
+      "left": 0.1125,
+      "top": 0.1375,
+      "width": 0.46249999999999997,
+      "height": 0.3675
+    }
+  },
+  {
+    "file": "text_13.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0375,
+      "top": 0.0625,
+      "width": 0.47750000000000004,
+      "height": 0.3925
+    }
+  },
+  {
+    "file": "text_14.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0625,
+      "top": 0.1,
+      "width": 0.545,
+      "height": 0.4175
+    }
+  },
+  {
+    "file": "text_15.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0875,
+      "top": 0.1375,
+      "width": 0.65,
+      "height": 0.44249999999999995
+    }
+  },
+  {
+    "file": "text_16.png",
+    "tag": "text",
+    "box": {
+      "left": 0.1125,
+      "top": 0.0625,
+      "width": 0.47000000000000003,
+      "height": 0.3425
+    }
+  },
+  {
+    "file": "text_17.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0375,
+      "top": 0.1,
+      "width": 0.48750000000000004,
+      "height": 0.375
+    }
+  },
+  {
+    "file": "text_18.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0625,
+      "top": 0.1375,
+      "width": 0.5475,
+      "height": 0.39999999999999997
+    }
+  },
+  {
+    "file": "text_19.png",
+    "tag": "text",
+    "box": {
+      "left": 0.0875,
+      "top": 0.0625,
+      "width": 0.5425,
+      "height": 0.43
+    }
+  },
+  {
+    "file": "text_20.png",
+    "tag": "text",
+    "box": {
+      "left": 0.1125,
+      "top": 0.1,
+      "width": 0.5874999999999999,
+      "height": 0.45000000000000007
+    }
+  }
+]

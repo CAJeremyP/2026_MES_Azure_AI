@@ -27,7 +27,7 @@ def generate_html_report(results: dict, output_path: Path):
             f"<td>{bb.get('width',0):.3f}</td><td>{bb.get('height',0):.3f}</td></tr>"
         )
     if not vision_rows:
-        vision_rows = '<tr><td colspan="6" class="empty">No detections above threshold</td></tr>'
+        vision_rows = '<tr><td colspan="6" class="empty">No objects detected above threshold</td></tr>'
 
     ocr_rows = ""
     for i, line in enumerate(doc_intel.get("lines", []), 1):

@@ -1,75 +1,108 @@
 """
 setup_custom_vision.py
 ======================
-Creates a Custom Vision project, uploads sample images with tags,
-trains the model, and publishes it for prediction.
+Creates an Object Detection Custom Vision project, uploads
+training images with bounding box annotations, trains, and publishes.
 
-Run once after deploy.sh has populated .env.
-Takes ~5-15 minutes (training time).
+Requires annotations.json produced by generate_sample_images.py.
 
 Usage:
     python scripts/setup_custom_vision.py
 """
 import os
 import sys
+import re
+import json
 import time
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from project root
 ROOT = Path(__file__).parent.parent
 load_dotenv(ROOT / ".env")
 
 try:
     from azure.cognitiveservices.vision.customvision.training import CustomVisionTrainingClient
-    from azure.cognitiveservices.vision.customvision.training.models import ImageFileCreateBatch, ImageFileCreateEntry, Region
+    from azure.cognitiveservices.vision.customvision.training.models import (
+        ImageFileCreateBatch, ImageFileCreateEntry, Region
+    )
     from msrest.authentication import ApiKeyCredentials
 except ImportError:
-    print("Installing required packages...")
     import subprocess
     subprocess.check_call([sys.executable, "-m", "pip", "install",
         "azure-cognitiveservices-vision-customvision", "msrest", "python-dotenv"])
     from azure.cognitiveservices.vision.customvision.training import CustomVisionTrainingClient
-    from azure.cognitiveservices.vision.customvision.training.models import ImageFileCreateBatch, ImageFileCreateEntry
+    from azure.cognitiveservices.vision.customvision.training.models import (
+        ImageFileCreateBatch, ImageFileCreateEntry, Region
+    )
     from msrest.authentication import ApiKeyCredentials
 
-TRAINING_ENDPOINT = os.environ["CUSTOM_VISION_TRAINING_ENDPOINT"]
-TRAINING_KEY      = os.environ["CUSTOM_VISION_TRAINING_KEY"]
-PUBLISH_NAME      = os.environ.get("CUSTOM_VISION_PUBLISH_NAME", "demov1")
-PREDICTION_RESOURCE_ID = os.environ.get("CUSTOM_VISION_PREDICTION_RESOURCE_ID", "")
-PROJECT_NAME      = "AzureAIDemo-ShapeDetector"
+TRAINING_ENDPOINT  = os.environ["CUSTOM_VISION_TRAINING_ENDPOINT"]
+TRAINING_KEY       = os.environ["CUSTOM_VISION_TRAINING_KEY"]
+PUBLISH_NAME       = os.environ.get("CUSTOM_VISION_PUBLISH_NAME", "demov1")
+PROJECT_NAME       = "AzureAIDemo-ShapeDetector"
+SAMPLE_IMAGES_DIR  = ROOT / "sample-images"
+ANNOTATIONS_FILE   = SAMPLE_IMAGES_DIR / "annotations.json"
+MIN_IMAGES_PER_TAG = 5
 
-SAMPLE_IMAGES_DIR = ROOT / "sample-images"
 
 def main():
     print("=" * 50)
-    print("  Custom Vision — Project Setup")
+    print("  Custom Vision — Object Detection Setup")
     print("=" * 50)
+
+    # ── Check annotations exist ───────────────────────────────
+    if not ANNOTATIONS_FILE.exists():
+        print("❌  annotations.json not found.")
+        print("   Run: python scripts/generate_sample_images.py")
+        sys.exit(1)
+
+    with open(ANNOTATIONS_FILE) as f:
+        annotations = json.load(f)
+    print(f"✅  Loaded {len(annotations)} annotations from annotations.json")
 
     credentials = ApiKeyCredentials(in_headers={"Training-key": TRAINING_KEY})
     trainer = CustomVisionTrainingClient(TRAINING_ENDPOINT, credentials)
 
-    # ── Check for existing project ───────────────────────────
+    # ── Project — must be Object Detection domain ─────────────
     existing = [p for p in trainer.get_projects() if p.name == PROJECT_NAME]
     if existing:
         project = existing[0]
-        print(f"✅  Found existing project: {project.id}")
-    else:
-        print(f"📁  Creating project '{PROJECT_NAME}'...")
-        # Object detection domain — best for shape detection
+        # Check it really is an object detection project
+        domain = next(
+            (d for d in trainer.get_domains() if str(d.id) == str(project.domain_id)),
+            None
+        )
+        if domain and domain.type != "ObjectDetection":
+            print(f"⚠️   Existing project is type '{domain.type}', not ObjectDetection.")
+            print(f"    Deleting and recreating as Object Detection...")
+            trainer.delete_project(project.id)
+            existing = []
+        else:
+            print(f"✅  Using existing Object Detection project: {project.id}")
+
+    if not existing:
+        print(f"📁  Creating Object Detection project '{PROJECT_NAME}'...")
         domains = trainer.get_domains()
-        od_domain = next(d for d in domains if d.type == "ObjectDetection" and "General" in d.name)
+        od_domain = next(
+            (d for d in domains
+             if d.type == "ObjectDetection" and "General" in d.name),
+            None
+        )
+        if not od_domain:
+            print("❌  No ObjectDetection domain found. Available domains:")
+            for d in domains:
+                print(f"    {d.name} ({d.type})")
+            sys.exit(1)
         project = trainer.create_project(
             PROJECT_NAME,
             domain_id=od_domain.id,
-            classification_type="Multiclass"
         )
         print(f"✅  Project created: {project.id}")
 
-    # ── Create tags ──────────────────────────────────────────
+    # ── Tags ──────────────────────────────────────────────────
     print("🏷️   Creating tags...")
     existing_tags = {t.name: t for t in trainer.get_tags(project.id)}
-    tag_names = ["circle", "rectangle", "triangle", "text"]
+    tag_names = sorted({a["tag"] for a in annotations})
     tags = {}
     for name in tag_names:
         if name in existing_tags:
@@ -78,87 +111,221 @@ def main():
             tags[name] = trainer.create_tag(project.id, name)
         print(f"   - {name}: {tags[name].id}")
 
-    # ── Upload sample images ──────────────────────────────────
-    print("🖼️   Uploading sample images...")
-    upload_count = 0
-    image_entries = []
+    # ── Count check ───────────────────────────────────────────
+    counts = {}
+    for a in annotations:
+        counts[a["tag"]] = counts.get(a["tag"], 0) + 1
+    print()
+    print("  Annotation counts:")
+    short = []
+    for tag_name, count in sorted(counts.items()):
+        ok = "✅" if count >= MIN_IMAGES_PER_TAG else "❌"
+        print(f"    {ok}  {tag_name:12s}: {count}")
+        if count < MIN_IMAGES_PER_TAG:
+            short.append(tag_name)
+    if short:
+        print(f"\n❌  Not enough images for: {', '.join(short)}")
+        print("   Run: python scripts/generate_sample_images.py")
+        sys.exit(1)
 
-    for img_path in SAMPLE_IMAGES_DIR.glob("*.png"):
-        # Determine tag from filename prefix (e.g. circle_01.png → circle)
-        stem = img_path.stem.lower()
-        matched_tag = None
-        for tag_name in tag_names:
-            if stem.startswith(tag_name):
-                matched_tag = tags[tag_name]
-                break
+    # ── Upload — count-based dedup per tag ────────────────────
+    print()
+    print("🖼️   Checking uploaded image counts per tag...")
 
-        if matched_tag is None:
-            print(f"   ⚠️  Skipping {img_path.name} — no matching tag")
-            continue
-
-        with open(img_path, "rb") as f:
-            image_entries.append(ImageFileCreateEntry(
-                name=img_path.name,
-                contents=f.read(),
-                tag_ids=[matched_tag.id]
-            ))
-        upload_count += 1
-
-    if image_entries:
-        batch = ImageFileCreateBatch(images=image_entries)
-        result = trainer.create_images_from_files(project.id, batch)
-        if result.is_batch_successful:
-            print(f"   ✅  Uploaded {upload_count} images.")
+    tags_to_upload = {}
+    for tag_name in tag_names:
+        target = counts[tag_name]
+        uploaded_count = trainer.get_tagged_image_count(
+            project.id, tag_ids=[tags[tag_name].id]
+        )
+        if uploaded_count == target:
+            print(f"   ✅  {tag_name:12s}: {uploaded_count}/{target} — already complete")
         else:
-            print("   ⚠️  Some images failed to upload:")
-            for img in result.images:
-                if img.status != "OK":
-                    print(f"      {img.source_url}: {img.status}")
+            print(f"   ⬆️   {tag_name:12s}: {uploaded_count}/{target} — queued for upload")
+            tags_to_upload[tag_name] = True
+
+    if not tags_to_upload:
+        print("   ✅  All tags fully uploaded — skipping upload step.")
     else:
-        print("   ℹ️  No sample images found. Add PNG files to sample-images/")
-        print("      Named like: circle_01.png, rectangle_01.png, etc.")
-        print("   Skipping training — add images and re-run this script.")
-        _write_project_id(project.id)
-        return
+        # Delete existing images for tags being re-uploaded
+        for tag_name in tags_to_upload:
+            existing_count = trainer.get_tagged_image_count(
+                project.id, tag_ids=[tags[tag_name].id]
+            )
+            if existing_count > 0:
+                print(f"   🗑️   Deleting {existing_count} existing '{tag_name}' image(s)...")
+                existing_imgs = trainer.get_tagged_images(
+                    project.id, tag_ids=[tags[tag_name].id], take=256
+                )
+                img_ids = [img.id for img in existing_imgs]
+                if img_ids:
+                    trainer.delete_images(project.id, image_ids=img_ids)
+
+        # Build ImageFileCreateEntry list with Region annotations
+        entries = []
+        for ann in annotations:
+            if ann["tag"] not in tags_to_upload:
+                continue
+            img_path = SAMPLE_IMAGES_DIR / ann["file"]
+            if not img_path.exists():
+                print(f"   ⚠️   {ann['file']} not found — skipping")
+                continue
+            b = ann["box"]
+            region = Region(
+                tag_id=tags[ann["tag"]].id,
+                left=b["left"],
+                top=b["top"],
+                width=b["width"],
+                height=b["height"],
+            )
+            with open(img_path, "rb") as f:
+                entries.append(ImageFileCreateEntry(
+                    name=ann["file"],
+                    contents=f.read(),
+                    regions=[region],
+                ))
+
+        print()
+        print(f"   Uploading {len(entries)} annotated image(s) in batches of 64...")
+        uploaded = 0
+        for i in range(0, len(entries), 64):
+            batch = ImageFileCreateBatch(images=entries[i:i+64])
+            result = trainer.create_images_from_files(project.id, batch)
+            if not result.is_batch_successful:
+                failed = [img for img in result.images
+                          if img.status not in ("OK", "OKDuplicate")]
+                if failed:
+                    print(f"   ⚠️   {len(failed)} image(s) failed:")
+                    for img in failed:
+                        print(f"        {img.source_url}: {img.status}")
+            uploaded += len(entries[i:i+64])
+            print(f"   ✅  Batch {i//64+1} done — {uploaded}/{len(entries)}")
+        print(f"   ✅  Upload complete.")
+
+    # ── Confirm counts ────────────────────────────────────────
+    print()
+    print("  Final uploaded counts:")
+    for tag_name in tag_names:
+        count = trainer.get_tagged_image_count(project.id, tag_ids=[tags[tag_name].id])
+        ok = "✅" if count >= MIN_IMAGES_PER_TAG else "❌"
+        print(f"    {ok}  {tag_name:12s}: {count}")
 
     # ── Train ─────────────────────────────────────────────────
-    print("🧠  Starting training (this may take 5-15 minutes)...")
-    iteration = trainer.train_project(project.id)
-    while iteration.status not in ["Completed", "Failed"]:
-        print(f"   Status: {iteration.status} — waiting 15s...")
+    print()
+    print("🧠  Starting training...")
+    print("    Object Detection training typically takes 5-15 minutes.")
+
+    iterations = trainer.get_iterations(project.id)
+    try:
+        iteration = trainer.train_project(project.id)
+    except Exception as e:
+        err = str(e)
+        if "Not enough images" in err:
+            print(f"❌  Not enough images: {err}")
+            sys.exit(1)
+        elif "Nothing changed since last training" in err or \
+             "already" in err.lower() or "up-to-date" in err.lower():
+            completed = sorted(
+                [it for it in iterations if it.status == "Completed"],
+                key=lambda it: it.last_modified or "", reverse=True
+            )
+            if completed:
+                iteration = completed[0]
+                print(f"   ℹ️   Nothing changed — using existing iteration: {iteration.id}")
+            else:
+                print("❌  No completed iterations and training is up-to-date.")
+                sys.exit(1)
+        else:
+            raise
+
+    # Poll
+    while iteration.status not in ("Completed", "Failed"):
+        hint = ""
+        if getattr(iteration, "training_error_details", None):
+            hint = f"  ⚠️  {iteration.training_error_details}"
+        print(f"   Status: {iteration.status} — waiting 15s...{hint}")
         time.sleep(15)
         iteration = trainer.get_iteration(project.id, iteration.id)
 
     if iteration.status == "Failed":
-        print("❌  Training failed. Check that you have enough tagged images (min 5 per tag).")
+        print("❌  Training failed.")
+        if getattr(iteration, "training_error_details", None):
+            print(f"  Reason : {iteration.training_error_details}")
+        print()
+        print("  Full iteration diagnostics:")
+        for attr in sorted(vars(iteration)):
+            if not attr.startswith("_"):
+                val = getattr(iteration, attr, None)
+                if val is not None:
+                    print(f"    {attr}: {val}")
+        print()
+        print("  Uploaded counts at failure:")
+        for tag_name in tag_names:
+            count = trainer.get_tagged_image_count(project.id, tag_ids=[tags[tag_name].id])
+            print(f"    {'✅' if count >= MIN_IMAGES_PER_TAG else '❌'}  {tag_name}: {count}")
         sys.exit(1)
 
-    print("✅  Training complete!")
+    print(f"✅  Training complete!")
 
     # ── Publish ───────────────────────────────────────────────
-    if PREDICTION_RESOURCE_ID:
-        print(f"📢  Publishing as '{PUBLISH_NAME}'...")
-        trainer.publish_iteration(project.id, iteration.id, PUBLISH_NAME, PREDICTION_RESOURCE_ID)
-        print("✅  Published!")
+    print(f"📢  Publishing as '{PUBLISH_NAME}'...")
+
+    prediction_endpoint = os.environ.get("CUSTOM_VISION_PREDICTION_ENDPOINT", "")
+    subscription_id     = os.environ.get("AZURE_SUBSCRIPTION_ID", "")
+    resource_group      = os.environ.get("AZURE_RESOURCE_GROUP", "")
+    resource_prefix     = os.environ.get("RESOURCE_PREFIX", "")
+
+    if not subscription_id or not resource_group:
+        print("⚠️   Missing AZURE_SUBSCRIPTION_ID or AZURE_RESOURCE_GROUP — skipping publish.")
+        print("    Publish manually at https://customvision.ai")
+        _write_project_id(project.id)
+        return
+
+    match = re.search(r"https://(.+?)\.cognitiveservices", prediction_endpoint)
+    if match:
+        pred_resource_name = match.group(1)
+    elif resource_prefix:
+        pred_resource_name = f"{resource_prefix}-vision-pred"
+        print(f"   ℹ️   Using resource name from prefix: {pred_resource_name}")
     else:
-        print("ℹ️  CUSTOM_VISION_PREDICTION_RESOURCE_ID not set in .env — skipping publish.")
-        print("   Set it and re-run, or publish manually in the Custom Vision portal.")
+        print("⚠️   Cannot determine prediction resource name. Publish manually.")
+        _write_project_id(project.id)
+        return
+
+    pred_resource_id = (
+        f"/subscriptions/{subscription_id}"
+        f"/resourceGroups/{resource_group}"
+        f"/providers/Microsoft.CognitiveServices/accounts/{pred_resource_name}"
+    )
+
+    try:
+        trainer.publish_iteration(project.id, iteration.id, PUBLISH_NAME, pred_resource_id)
+        print(f"✅  Published as '{PUBLISH_NAME}'")
+    except Exception as e:
+        if "already published" in str(e).lower():
+            print(f"✅  Already published as '{PUBLISH_NAME}'")
+        else:
+            print(f"⚠️   Publish failed: {e}")
+            print("    Publish manually at https://customvision.ai")
 
     _write_project_id(project.id)
     print()
     print("=" * 50)
-    print("  Done! Project ID written to .env")
+    print("  Done! Object Detection model ready.")
+    print()
+    print("  Next: python app/main.py --demo")
     print("=" * 50)
 
 
 def _write_project_id(project_id: str):
     env_path = ROOT / ".env"
-    content = env_path.read_text()
+    content  = env_path.read_text()
     if "CUSTOM_VISION_PROJECT_ID=" in content:
-        import re
-        content = re.sub(r"^CUSTOM_VISION_PROJECT_ID=.*$",
-                         f"CUSTOM_VISION_PROJECT_ID={project_id}",
-                         content, flags=re.MULTILINE)
+        content = re.sub(
+            r"^CUSTOM_VISION_PROJECT_ID=.*$",
+            f"CUSTOM_VISION_PROJECT_ID={project_id}",
+            content, flags=re.MULTILINE
+        )
     else:
         content += f"\nCUSTOM_VISION_PROJECT_ID={project_id}\n"
     env_path.write_text(content)

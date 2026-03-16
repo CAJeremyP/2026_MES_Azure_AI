@@ -122,10 +122,10 @@ class DatabaseClient:
                 (
                     d["tag"],
                     f"{d['probability']:.1%}",
-                    f"{d.get('bounding_box', {}).get('left', 0):.3f}",
-                    f"{d.get('bounding_box', {}).get('top', 0):.3f}",
-                    f"{d.get('bounding_box', {}).get('width', 0):.3f}",
-                    f"{d.get('bounding_box', {}).get('height', 0):.3f}",
+                    f"{d.get('bounding_box',{}).get('left',0):.3f}",
+                    f"{d.get('bounding_box',{}).get('top',0):.3f}",
+                    f"{d.get('bounding_box',{}).get('width',0):.3f}",
+                    f"{d.get('bounding_box',{}).get('height',0):.3f}",
                 )
                 for d in vision
             ]

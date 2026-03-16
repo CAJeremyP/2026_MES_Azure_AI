@@ -65,12 +65,12 @@ def run_pipeline(image_path: Path):
     results["vision"] = vision_results
     if vision_results:
         for r in vision_results:
-            box = r.get("bounding_box", {})
+            bb = r.get("bounding_box", {})
             print(f"  🔷  {r['tag']:15s}  confidence={r['probability']:.1%}  "
-                  f"box=(left={box.get('left',0):.2f}, top={box.get('top',0):.2f}, "
-                  f"w={box.get('width',0):.2f}, h={box.get('height',0):.2f})")
+                  f"box=(left={bb.get('left',0):.3f}, top={bb.get('top',0):.3f}, "
+                  f"w={bb.get('width',0):.3f}, h={bb.get('height',0):.3f})")
     else:
-        print("  ℹ️   No shapes detected (check model is trained and published)")
+        print("  ℹ️   No objects detected above threshold (check model is trained and published)")
     print()
 
     # ── Step 3: Document Intelligence — OCR ───────────────────
