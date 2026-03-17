@@ -31,7 +31,8 @@ def generate_html_report(results: dict, output_path: Path):
 
     ocr_rows = ""
     for i, line in enumerate(doc_intel.get("lines", []), 1):
-        conf = f"{line['confidence']:.1%}" if line.get("confidence") else "n/a"
+        conf_val = line.get("confidence")
+        conf = f"{conf_val:.1%}" if conf_val is not None else "n/a"
         ocr_rows += (
             f"<tr><td>{i}</td><td>{_escape(line['content'])}</td>"
             f"<td>{conf}</td><td>{line.get('page', 1)}</td></tr>"

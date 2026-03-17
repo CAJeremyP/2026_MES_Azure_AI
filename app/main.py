@@ -81,7 +81,9 @@ def run_pipeline(image_path: Path):
     results["document_intelligence"] = doc_results
     if doc_results.get("lines"):
         for line in doc_results["lines"][:10]:   # Show first 10 lines
-            print(f"  📄  \"{line['content']}\"  (confidence={line.get('confidence', 0):.1%})")
+            conf = line.get("confidence")
+            conf_str = f"{conf:.1%}" if conf is not None else "n/a"
+            print(f"  📄  \"{line['content']}\"  (confidence={conf_str})")
         if len(doc_results["lines"]) > 10:
             print(f"  ... and {len(doc_results['lines'])-10} more lines")
     else:
