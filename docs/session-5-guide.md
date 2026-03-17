@@ -3,27 +3,26 @@
 
 **Duration:** 1 hour  
 **Format:** Virtual Instructor-Led (vILT), up to 50 participants  
-**Prerequisites:** Session 4 complete; pipeline has run at least once successfully
+**Prerequisites:** Session 4 complete; at least one successful pipeline run in Cosmos DB
 
 ---
 
 ## Learning Objectives
 
 By the end of this session, participants will be able to:
-- Extract detected shape locations and recognized text from Azure AI results
-- Save structured results into Azure Storage and a SQL database
-- Display processed results in the program interface
-- Evaluate the cost implications of the Azure AI solution
+- Extract detected shape locations and recognised text from Cosmos DB
+- Display results in the program interface (terminal table + HTML report)
+- Evaluate the cost of the Azure AI solution
+- Understand the complete end-to-end workflow from image to output
 
 ---
 
 ## Pre-Session Checklist (Instructor)
 
-- [ ] At least one successful pipeline run from Session 4 exists in the database
+- [ ] At least one run from Session 4 exists in Cosmos DB
 - [ ] `app/output/` directory exists (created automatically on first run)
-- [ ] Confirm HTML report was generated in `app/output/` from Session 4
-- [ ] Azure Portal open — Cost Management + resource group visible
-- [ ] Prepared to open the HTML report in a browser during the demo
+- [ ] An HTML report from Session 4 is ready to open in a browser
+- [ ] Azure Portal open — Cosmos DB Data Explorer visible
 
 ---
 
@@ -31,21 +30,14 @@ By the end of this session, participants will be able to:
 
 ### 00:00 – 00:05 | Recap (5 min)
 
-Quickly recap Session 4. We have data flowing in — today we complete the loop: get data *out*, display it meaningfully, and understand what it cost.
+Briefly recap Session 4. Show the Cosmos DB Data Explorer with the stored document — participants can see their Session 4 data is persisted and queryable.
 
-**Show the database** in Azure Portal Query Editor:
-```sql
-SELECT r.run_id, r.image_name, r.created_at,
-       COUNT(v.id) AS shapes_detected,
-       COUNT(d.id) AS ocr_lines
-FROM pipeline_runs r
-LEFT JOIN vision_detections v ON v.run_id = r.id
-LEFT JOIN doc_intel_lines d   ON d.run_id = r.id
-GROUP BY r.run_id, r.image_name, r.created_at
-ORDER BY r.created_at DESC;
+**Show in Azure Portal:**
+```
+Cosmos DB → Data Explorer → aidemodb → pipeline_runs → Items
 ```
 
-This sets the stage — participants can see their Session 4 data is persisted and queryable.
+Click a document to show its full JSON — the `vision` array with bounding boxes and the `ocr_lines` array with extracted text.
 
 ---
 
@@ -53,144 +45,140 @@ This sets the stage — participants can see their Session 4 data is persisted a
 
 **Open:** `app/database.py` — `print_run_summary()` method
 
-Walk through the two queries:
+Walk through the two display blocks:
 
-**Query 1 — Vision detections:**
-```sql
-SELECT tag,
-       ROUND(probability * 100, 1) AS pct,
-       ROUND(bbox_left, 3), ROUND(bbox_top, 3),
-       ROUND(bbox_width, 3), ROUND(bbox_height, 3)
-FROM vision_detections
-WHERE run_id = ?
-ORDER BY probability DESC
+**Vision detections:**
+```python
+rows = [
+    (d["tag"], f"{d['probability']:.1%}",
+     f"{d.get('bounding_box',{}).get('left',0):.3f}",
+     f"{d.get('bounding_box',{}).get('top',0):.3f}",
+     f"{d.get('bounding_box',{}).get('width',0):.3f}",
+     f"{d.get('bounding_box',{}).get('height',0):.3f}")
+    for d in vision
+]
 ```
 
-**Key teaching points:**
-- Parameterised queries (`?` placeholder) — never string-concatenate user input into SQL
-- `ROUND()` for readable output — raw floats like `0.9872634` aren't presentation-friendly
-- `ORDER BY probability DESC` — surface highest-confidence results first
-
-**Query 2 — OCR lines:**
-```sql
-SELECT line_number, content
-FROM doc_intel_lines
-WHERE run_id = ?
-ORDER BY line_number
+**OCR lines:**
+```python
+rows = [(l["line_number"], l["content"], l.get("page", 1)) for l in lines]
 ```
 
-**Discussion question:** *If we stored `polygon_json` for each OCR line, how could we use that data?*  
-Answer: Draw bounding boxes on the image, highlight matched text regions, calculate line spacing to detect columns/tables, etc.
+**Key teaching point — the bounding box values:**  
+The coordinates are normalised (0–1 fractions of image size). Walk through what they mean:
 
-**Live demo:** Run `python main.py` again. Show the `tabulate`-formatted terminal tables — this is the "display in the program interface" outcome from the session objectives.
+```
+circle  97.2%  left=0.175  top=0.175  width=0.650  height=0.650
+```
+
+This means: the circle starts 17.5% from the left edge, 17.5% from the top, and occupies 65% of the image width and height. On a 400×400 image: starts at pixel (70, 70), ends at pixel (330, 330).
+
+**Discussion:** How would you use these coordinates in a real application?  
+Examples: draw bounding boxes on the image in the UI, crop the detected region for further processing, calculate centre points for spatial analysis.
+
+**Live demo:** Run `python app/main.py --image sample-images/mixed_shapes_and_text.png` and walk through the formatted terminal tables.
 
 ---
 
 ### 00:20 – 00:35 | Step 2: The HTML Report (15 min)
 
-**Open** the generated HTML file from `app/output/` in a browser.
+**Open** the report from `app/output/report_{run_id}.html` in a browser.
 
 Walk through each section:
-1. **Header** — run ID and timestamp for traceability
-2. **Blob Storage card** — shows the exact URL of the uploaded image
-3. **Custom Vision table** — all detections with confidence and bounding box
-4. **Document Intelligence table** — every OCR line with page number
-5. **Cost Review card** — service-by-service breakdown
+1. **Header** — run ID and UTC timestamp for traceability
+2. **Blob Storage card** — exact URL of the uploaded image
+3. **Custom Vision table** — all detections with confidence and all four bounding box coordinates
+4. **Document Intelligence table** — every extracted line with page number
+5. **Cost Review card** — per-service breakdown
 
-**Open:** `app/report.py` — show how the report is generated from the `results` dict.
+**Open:** `app/report.py` — show how the report is assembled from the `results` dict.
 
-**Key teaching point:** The pipeline passes a single `results` dict through every step. Each module adds its output to that dict. The report reads from the completed dict at the end. This is a simple but powerful pattern — it makes the pipeline easy to test and extend.
+**Key teaching point — the pipeline data flow:**
 
 ```python
 results = {"run_id": run_id, "image_path": str(image_path)}
-# ... each step adds to results ...
-results["vision"] = vision_results
-results["document_intelligence"] = doc_results
-results["costs"] = costs
+results["blob_url"]               = upload_image(image_path)
+results["vision"]                 = run_custom_vision(blob_url, image_path)
+results["document_intelligence"]  = run_document_intelligence(image_path)
+results["costs"]                  = get_cost_summary()
 generate_html_report(results, report_path)
 ```
 
-**Discussion:** How would you extend this report? Add a thumbnail of the image? Draw the bounding boxes on a canvas overlay? Export to PDF?
+Each step adds to the same `results` dict. The report reads from the completed dict at the end. This makes each module independently testable and the pipeline easy to extend — add a new service, add a key to `results`, add a card to the report.
+
+**Discussion:** How would you extend this report? Ideas: embed a thumbnail of the image, draw bounding box overlays with canvas/SVG, export as PDF, send by email.
 
 ---
 
 ### 00:35 – 00:50 | Step 3: Azure Cost Review (15 min)
 
-This is a crucial real-world skill — understanding what an AI solution actually costs before it goes to production.
+**Open:** `app/cost_review.py`
 
-**Open:** `app/cost_review.py` — walk through the free tier limits table.
+Walk through the cost reference table and what the `az consumption usage list` query does.
 
-**Reference the printed cost output from the terminal run.**
+**Actual cost breakdown for this demo:**
 
-#### Free Tier Limits (F0)
+| Service | Free Tier | Projected Cost |
+|---------|-----------|----------------|
+| Custom Vision (Training) | 5,000 tx/month F0 | **$0** |
+| Custom Vision (Prediction) | 10,000 tx/month F0 | **$0** |
+| Document Intelligence | 500 pages/month F0 | **$0** |
+| Cosmos DB | 1,000 RU/s + 25 GB free | **$0** |
+| Blob Storage | < 1 MB | **< $0.01** |
+| **Total** | | **~$0** |
 
-| Service | Free Allowance | Overage Price |
-|---------|---------------|---------------|
-| Custom Vision (Training) | 5,000 transactions/month | $2.00/1,000 |
-| Custom Vision (Prediction) | 10,000 transactions/month | $2.00/1,000 |
-| Document Intelligence | 500 pages/month | $1.50/1,000 pages |
+**Key message:** When using free tiers and serverless services, a 5-session demo programme with ~50 image runs costs effectively nothing. Production workloads at scale are a very different story — understanding pricing models is essential before you go live.
 
-> ⚠️ F0 tiers are **per Azure subscription**, not per resource. If the subscription already uses Custom Vision F0 elsewhere, deployment will fail. See [docs/risks.md](risks.md).
-
-#### SQL Serverless Pricing (demo SKU: GP_S_Gen5_1)
-
-- Active: ~$0.000145 per vCore-second (~$0.52/hour at 1 vCore)
-- Paused: **$0.00** (auto-pauses after 60 minutes idle)
-- Storage: $0.115/GB/month (we provisioned 1 GB max → $0.12/month max)
-
-**Discussion question:** *For this demo (5 sessions × 1 hour, ~10 images per session), what would the total cost be?*
-
-Walk through the estimation:
-- Custom Vision: ~50 prediction calls → well within free tier → **$0**
-- Document Intelligence: ~50 pages → well within free tier → **$0**
-- SQL: ~5 hours active + storage → ~**$2.60–3.00**
-- Blob Storage: <1 MB data → **< $0.01**
-
-**Total estimated cost: ~$3 for the entire 5-session programme.**
-
-**Key message:** Azure's free tiers and serverless options make AI demos extremely affordable. Production workloads at scale are a different story — always size for expected volume.
-
-**Show teardown command:**
+**Show teardown:**
 ```bash
 ./scripts/teardown.sh
 ```
 
-Explain: after running this, there are **zero ongoing charges**. The resource group and everything in it is deleted. This is the recommended practice after any short-lived demo.
+Explain: after this runs, all resources are deleted and there are **zero ongoing charges**. This is the recommended practice after any short-lived demo or training environment.
 
 ---
 
 ### 00:50 – 01:00 | Programme Wrap-Up (10 min)
 
-#### What We Built — End to End
+#### Complete File Map
 
 ```
-Local Python App
-      │
-      ├── app/main.py         ← orchestrator
-      ├── app/uploader.py     ← Blob Storage
-      ├── app/vision.py       ← Custom Vision
-      ├── app/document_intel.py ← Document Intelligence
-      ├── app/database.py     ← Azure SQL
-      ├── app/cost_review.py  ← Cost Management
-      └── app/report.py       ← HTML output
-              │
-              └── infra/main.bicep  ← all Azure resources as code
+azure-ai-demo/
+├── app/
+│   ├── main.py              ← orchestrates all 7 steps
+│   ├── uploader.py          ← Step 1: Blob Storage
+│   ├── vision.py            ← Step 2: Custom Vision Object Detection
+│   ├── document_intel.py    ← Step 3: Document Intelligence OCR
+│   ├── database.py          ← Step 4 & 5: Cosmos DB read/write
+│   ├── cost_review.py       ← Step 6: Cost estimation
+│   └── report.py            ← Step 7: HTML output
+├── infra/
+│   └── main.bicep           ← all Azure resources as code
+└── scripts/
+    ├── deploy.sh            ← one-command deploy
+    ├── teardown.sh          ← one-command cleanup
+    ├── generate_sample_images.py  ← 80 OD training images + annotations
+    └── setup_custom_vision.py     ← train + publish the OD model
 ```
 
 #### Key Takeaways
 
-1. **Infrastructure as Code** — every Azure resource is defined in `main.bicep`. Reproducible, version-controlled, one-command deploy and teardown.
-2. **Serverless where possible** — SQL serverless + F0 tiers = near-zero cost for demos and low-volume workloads.
-3. **Separation of concerns** — each module does one thing. The orchestrator (`main.py`) connects them.
-4. **Results persistence** — SQL gives us queryable history of every run, not just the last one.
-5. **Cost awareness** — understanding the free tier limits and serverless pricing prevents surprise bills.
+**Infrastructure as Code** — Every Azure resource is declared in `main.bicep`. The environment is reproducible, version-controlled, and deployable in under 5 minutes.
 
-#### Next Steps for Participants
+**Choose services without provisioning restrictions** — Azure SQL has regional provisioning blocks on many subscription types. Cosmos DB, Cognitive Services, and Blob Storage deploy without issue everywhere. Know your subscription type before designing an architecture.
 
-- Fork the GitHub repo and experiment with different images
-- Swap `prebuilt-read` for `prebuilt-invoice` in `document_intel.py` — see what changes
-- Add a new table to store full OCR word-level data (the `words` array is already captured)
-- Try deploying to a different Azure region and compare latency
+**Serverless and free tiers** — Cosmos DB serverless costs $0 when idle and cents per million operations when active. F0 Cognitive Services tiers are generous enough for demo and low-volume use.
+
+**Separation of concerns** — Each `app/` module does exactly one thing. The orchestrator connects them. This makes the pipeline easy to test, debug, and extend.
+
+**Object Detection vs Classification** — Classification labels a whole image. Object Detection finds *what* is in an image and *where*, returning normalised bounding box coordinates for each detected object.
+
+#### Suggestions for Further Exploration
+
+- Swap `prebuilt-read` for `prebuilt-invoice` in `document_intel.py` — observe the structured key-value output
+- Add a fifth tag to the Custom Vision model (e.g. `ellipse`) and retrain
+- Extend `database.py` to also store word-level OCR confidence scores
+- Add bounding box overlay drawing to `report.py` using an SVG or canvas element
 
 ---
 
@@ -198,7 +186,8 @@ Local Python App
 
 | Issue | Likely cause | Fix |
 |-------|-------------|-----|
-| Empty HTML report | Pipeline run didn't complete | Check terminal for errors; re-run `python main.py` |
-| SQL results empty | Tables not populated | Ensure `ensure_tables()` and `insert_*()` ran without error |
-| Cost data shows "unavailable" | Missing Cost Management Reader role | View costs directly in Azure Portal → Cost Management |
-| Report opens but shows "No detections" | Model below confidence threshold (0.4) | Lower `CONFIDENCE_THRESHOLD` in `vision.py` or retrain with more images |
+| HTML report not opening | Pipeline didn't reach Step 7 | Check terminal for errors in earlier steps |
+| Cosmos DB results empty | `insert_*` methods didn't run | Ensure no errors in Step 4; check `db.ensure_tables()` ran |
+| Cost data shows "unavailable" | Missing Cost Management Reader role | View costs in Azure Portal → Cost Management |
+| Vision results all below threshold | Confidence threshold 0.4 is too high for this image | Lower `CONFIDENCE_THRESHOLD` in `vision.py` to `0.2` for testing |
+| `KeyError: 'content'` in OCR | Unexpected response structure | Print `doc_results["lines"]` to inspect the raw output |

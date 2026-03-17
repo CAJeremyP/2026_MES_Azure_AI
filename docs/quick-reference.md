@@ -4,27 +4,24 @@
 
 ```bash
 # ── First-time setup ──────────────────────────────────────────
-cp .env.example .env              # 1. Copy config template
-# (edit .env — set AZURE_SUBSCRIPTION_ID and RESOURCE_PREFIX)
+cp .env.example .env
+# Edit .env: set AZURE_SUBSCRIPTION_ID, AZURE_RESOURCE_GROUP,
+#            AZURE_LOCATION, RESOURCE_PREFIX
 
-./scripts/deploy.sh               # 2. Deploy all Azure resources
-                                  #    (~3-5 min, populates .env)
+./scripts/deploy.sh                         # Deploy all Azure resources (~3-5 min)
 
-pip install Pillow                # 3a. Generate sample images
-python scripts/generate_sample_images.py
+python scripts/generate_sample_images.py   # Generate 80 training images + annotations.json
+python scripts/setup_custom_vision.py      # Upload images, train OD model, publish (~5-15 min)
 
-python scripts/setup_custom_vision.py  # 3b. Train Custom Vision model
-                                       #     (~5-15 min)
-
-cd app && pip install -r requirements.txt  # 4. Install app dependencies
+pip install -r app/requirements.txt        # Install Python dependencies
 
 # ── Run the demo ──────────────────────────────────────────────
-python app/main.py                # Interactive — pick an image
-python app/main.py --demo         # Auto-run all sample images
-python app/main.py --image path/to/image.png  # Specific image
+python app/main.py                         # Interactive — pick an image from the menu
+python app/main.py --demo                  # Auto-run first two sample images
+python app/main.py --image path/to/img.png # Run on a specific image
 
 # ── Teardown (run after every session!) ──────────────────────
-./scripts/teardown.sh             # Delete all Azure resources
+./scripts/teardown.sh                      # Delete all Azure resources
 ```
 
 ---
@@ -34,28 +31,44 @@ python app/main.py --image path/to/image.png  # Specific image
 | File | Purpose |
 |------|---------|
 | `.env` | All secrets and config — **never commit this** |
-| `infra/main.bicep` | All Azure resources defined as code |
-| `app/main.py` | Pipeline orchestrator — start here |
+| `infra/main.bicep` | All Azure resources as code |
+| `app/main.py` | Pipeline orchestrator — 7-step workflow |
 | `app/uploader.py` | Blob Storage upload |
-| `app/vision.py` | Custom Vision shape detection |
+| `app/vision.py` | Custom Vision object detection |
 | `app/document_intel.py` | Document Intelligence OCR |
-| `app/database.py` | Azure SQL — schema + queries |
+| `app/database.py` | Cosmos DB — read/write pipeline results |
 | `app/cost_review.py` | Azure cost estimation |
 | `app/report.py` | HTML report generator |
 | `app/output/` | Generated HTML reports (gitignored) |
+| `sample-images/annotations.json` | Bounding box annotations for OD training |
 
 ---
 
-## Key Azure Resources
+## Azure Resources Deployed
 
-| Resource | Type | Purpose |
-|----------|------|---------|
-| `{prefix}stor...` | Storage Account | Blob container for images |
-| `{prefix}-vision-train` | Cognitive Services | Custom Vision training |
-| `{prefix}-vision-pred` | Cognitive Services | Custom Vision prediction |
-| `{prefix}-docintel` | Cognitive Services | Document Intelligence OCR |
-| `{prefix}-sql-...` | SQL Server | Database host |
-| `aidemodb` | SQL Database (Serverless) | Results storage |
+| Resource | Type | SKU | Purpose |
+|----------|------|-----|---------|
+| `{prefix}stor...` | Storage Account | Standard LRS | Blob container for uploaded images |
+| `{prefix}-vision-train` | Cognitive Services | F0 (free) | Custom Vision training |
+| `{prefix}-vision-pred` | Cognitive Services | F0 (free) | Custom Vision object detection |
+| `{prefix}-docintel` | Cognitive Services | F0 (free) | Document Intelligence OCR |
+| `{prefix}-cosmos-...` | Cosmos DB | Serverless + free tier | Pipeline results storage |
+
+> **Note:** Cosmos DB replaced Azure SQL due to regional provisioning restrictions on many subscription types. See [risks.md](risks.md) for details.
+
+---
+
+## Pipeline Steps
+
+| Step | Module | What it does |
+|------|--------|-------------|
+| 1 | `uploader.py` | Upload image to Azure Blob Storage |
+| 2 | `vision.py` | Detect shapes with bounding boxes (Custom Vision OD) |
+| 3 | `document_intel.py` | Extract text lines and words (prebuilt-read) |
+| 4 | `database.py` | Save run + all results to Cosmos DB |
+| 5 | `database.py` | Print results summary to terminal |
+| 6 | `cost_review.py` | Show Azure cost breakdown |
+| 7 | `report.py` | Generate HTML report in `app/output/` |
 
 ---
 
@@ -64,48 +77,75 @@ python app/main.py --image path/to/image.png  # Specific image
 | Variable | Set by | Description |
 |----------|--------|-------------|
 | `AZURE_SUBSCRIPTION_ID` | You | Your Azure subscription GUID |
-| `AZURE_RESOURCE_GROUP` | You | Resource group name (default: `rg-ai-demo`) |
-| `RESOURCE_PREFIX` | You | 3–8 lowercase letters |
+| `AZURE_RESOURCE_GROUP` | You | Resource group name |
+| `AZURE_LOCATION` | You | Azure region (e.g. `eastus`) |
+| `RESOURCE_PREFIX` | You | 3–8 lowercase letters, no hyphens |
 | `STORAGE_ACCOUNT_NAME` | `deploy.sh` | Auto-populated |
 | `STORAGE_CONNECTION_STRING` | `deploy.sh` | Auto-populated |
 | `CUSTOM_VISION_TRAINING_KEY` | `deploy.sh` | Auto-populated |
 | `CUSTOM_VISION_PREDICTION_KEY` | `deploy.sh` | Auto-populated |
 | `CUSTOM_VISION_PROJECT_ID` | `setup_custom_vision.py` | Auto-populated after training |
+| `CUSTOM_VISION_PUBLISH_NAME` | You (default: `demov1`) | Published iteration name |
 | `DOCUMENT_INTELLIGENCE_KEY` | `deploy.sh` | Auto-populated |
-| `SQL_CONNECTION_STRING` | `deploy.sh` | Auto-populated |
+| `COSMOS_ENDPOINT` | `deploy.sh` | Auto-populated |
+| `COSMOS_KEY` | `deploy.sh` | Auto-populated |
+| `COSMOS_DATABASE_NAME` | `deploy.sh` | Auto-populated (default: `aidemodb`) |
+
+---
+
+## Cosmos DB Document Schema
+
+Each pipeline run is stored as a single JSON document in the `pipeline_runs` container:
+
+```json
+{
+  "id": "20251201_103045",
+  "run_id": "20251201_103045",
+  "image_name": "/path/to/circle_01.png",
+  "blob_url": "https://{account}.blob.core.windows.net/demo-images/...",
+  "created_at": "2025-12-01T10:30:45Z",
+  "vision": [
+    {
+      "tag": "circle",
+      "probability": 0.9721,
+      "bounding_box": { "left": 0.175, "top": 0.175, "width": 0.65, "height": 0.65 }
+    }
+  ],
+  "ocr_lines": [
+    { "line_number": 1, "content": "Azure AI Demo", "page": 1 }
+  ]
+}
+```
 
 ---
 
 ## Useful Azure CLI Commands
 
 ```bash
-# Check deployment status
-az deployment group show --resource-group rg-ai-demo --name main
-
-# List all resources in the group
+# Check all resources are deployed
 az resource list --resource-group rg-ai-demo -o table
 
-# View SQL tables (Azure Portal → SQL Database → Query Editor)
-SELECT * FROM pipeline_runs ORDER BY created_at DESC;
-SELECT * FROM vision_detections WHERE run_id = 1;
-SELECT * FROM doc_intel_lines WHERE run_id = 1;
-
-# Check Custom Vision projects
-az cognitiveservices account list --resource-group rg-ai-demo -o table
+# View Cosmos DB documents (Azure Portal → Data Explorer is easier)
+az cosmosdb sql query \
+  --account-name {cosmos-account} \
+  --resource-group rg-ai-demo \
+  --database-name aidemodb \
+  --container-name pipeline_runs \
+  --query-text "SELECT * FROM c ORDER BY c.created_at DESC OFFSET 0 LIMIT 5"
 
 # Verify teardown complete
-az group show --name rg-ai-demo   # Should return ResourceGroupNotFound
+az group show --name rg-ai-demo
+# Should return: ResourceGroupNotFound
 ```
 
 ---
 
 ## Estimated Costs
 
-| Scenario | Estimated Cost |
-|----------|---------------|
-| 5-session programme (all F0 free tiers) | ~$1.50–$3.00 total |
-| If F0 tiers already used (S0 pricing) | ~$2.00–$5.00 total |
-| Per hour of SQL active time | ~$0.26 (0.5 vCore serverless) |
+| Scenario | Estimated Total |
+|----------|----------------|
+| 5-session programme (all F0 free tiers + free Cosmos) | ~$0.00 |
+| If Cosmos free tier already used (serverless billing) | ~$0.50–2.00 |
 | After teardown | **$0.00** |
 
-See [docs/cost-estimate.md](docs/cost-estimate.md) for full breakdown.
+See [cost-estimate.md](cost-estimate.md) for full breakdown.

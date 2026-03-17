@@ -1,156 +1,141 @@
 # Risks & Project Challenges
 
-This document catalogues known risks, their likelihood, impact, and mitigations. Review before each session.
+Known risks encountered during development, with mitigations and current status.
 
 ---
 
-## Risk Register
-
-### R1 — Custom Vision Model Not Ready
+### R1 — Custom Vision Model Not Ready Before Session
 **Likelihood:** Medium  
-**Impact:** High — Session 4 demo fails completely  
+**Impact:** High — Step 2 of the pipeline returns no results
 
-**Description:** Custom Vision model must be trained and *published* before the prediction API can be called. Training takes 5–30 minutes depending on image count. Publishing requires the prediction resource ID in `.env`.
+**Description:** The Object Detection model must be trained and published before `detect_image` can be called. Training takes 5–20 minutes. Publishing requires the prediction resource ARM ID, which is derived automatically from `RESOURCE_PREFIX` in `.env`.
 
-**Mitigation:**
-- Run `scripts/setup_custom_vision.py` at least 1 hour before Session 4
-- Add minimum 5 images per tag to `sample-images/` before running setup
-- The script writes `CUSTOM_VISION_PROJECT_ID` to `.env` automatically
-- Verify with: `python -c "from app.vision import run_custom_vision; print('vision OK')"`
+**Mitigation (implemented):**
+- `setup_custom_vision.py` validates image counts before attempting training and prints a clear fix message
+- The script handles "Nothing changed since last training" gracefully — reuses the existing completed iteration rather than crashing
+- Run the full setup sequence at least 30 minutes before the session:
+  ```bash
+  python scripts/generate_sample_images.py
+  python scripts/setup_custom_vision.py
+  ```
 
-**Fallback:** If model isn't ready, demonstrate the Document Intelligence (OCR) steps first. Vision detections will show empty but won't crash the app.
+**Fallback:** If the model isn't ready, Document Intelligence (Step 3) still runs and produces OCR output. Step 2 prints a warning and returns an empty list without crashing.
 
 ---
 
 ### R2 — F0 (Free Tier) Already In Use On Subscription
 **Likelihood:** Medium (common in shared enterprise subscriptions)  
-**Impact:** Medium — deployment fails with `QuotaExceeded` error  
+**Impact:** Medium — deployment fails with `QuotaExceeded`
 
-**Description:** Azure allows only one F0 instance per Cognitive Services type per subscription. If the org's Azure subscription already has Custom Vision F0 or Document Intelligence F0 resources in any region, the Bicep deployment will fail.
-
-**Mitigation:**
-- Before deploying, check: `az cognitiveservices account list --query "[?sku.name=='F0']" -o table`
-- If F0 is in use, change the SKU in `infra/main.bicep` from `F0` to `S0` for affected resources
-- S0 cost for the demo volume is under $1 total — still negligible
-
----
-
-### R3 — SQL Serverless Cold Start Delay
-**Likelihood:** High (will happen on first connection after any idle period)  
-**Impact:** Low — causes a 30–90 second apparent hang  
-
-**Description:** Azure SQL Serverless auto-pauses after 60 minutes of inactivity. The first connection after a pause triggers a resume, which takes 30–90 seconds. This is normal behaviour but can alarm participants if unexpected.
+**Description:** Azure allows only one F0 instance per Cognitive Services type per subscription. If Custom Vision or Document Intelligence F0 is already provisioned elsewhere in the subscription, the Bicep deployment fails.
 
 **Mitigation:**
-- Warn participants explicitly before running the database step: *"First connection may take up to 60 seconds — this is the serverless database waking up."*
-- Optionally run a warm-up query before the session: `az sql db show --resource-group rg-ai-demo --server <server> --name aidemodb`
-- The `database.py` code already prints a warning message about cold starts
+- Check before deploying: `az cognitiveservices account list --query "[?sku.name=='F0']" -o table`
+- If F0 is in use, change the relevant SKU in `infra/main.bicep` from `F0` to `S0`
+- S0 cost for demo volumes is under $1 total
 
 ---
 
-### R4 — ODBC Driver Not Installed on Participant Machines
-**Likelihood:** Medium (Windows machines without ODBC Driver 18)  
-**Impact:** Medium — `pyodbc` import succeeds but connection fails  
+### R3 — Azure SQL Regional Provisioning Restriction *(Encountered and resolved)*
+**Likelihood:** High on MSDN / Visual Studio / some EA subscriptions  
+**Impact:** Was High — deployment failed with `ProvisioningDisabled` in all regions
 
-**Description:** `pyodbc` requires Microsoft ODBC Driver 18 for SQL Server to be installed separately from Python. This is not installed by default on most machines.
+**Description:** Azure SQL has subscription-level provisioning restrictions that cannot be bypassed by switching regions. The error `"Provisioning is restricted in this region"` appeared in every tested region including `eastus`, `eastus2`, `westus2`, and `centralus`.
 
-**Mitigation:**
-- Include ODBC driver installation in pre-session setup instructions
-- Download link: https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server
-- For macOS: `brew install msodbcsql18`
-- For Ubuntu/Debian: See Microsoft's apt repo instructions
-- Error to look for: `pyodbc.Error: ('01000', "[01000] [unixODBC][Driver Manager]Can't open lib...`
+**Resolution:** Azure SQL was removed from the project entirely and replaced with **Azure Cosmos DB**. Cosmos DB has no regional provisioning restrictions, no ODBC driver requirement, a genuine free tier ($0/month), and serverless billing when idle. All pipeline results are stored as JSON documents in a `pipeline_runs` container. See [cost-estimate.md](cost-estimate.md) for pricing details.
+
+> **Note for the workshop:** Session 2 covers Azure SQL concepts. The demo infrastructure uses Cosmos DB, but the SQL session content (Azure SQL options, security, architectures, hands-on exercises) is delivered using the Azure Portal and documentation rather than a live deployment. Instructors should clarify this distinction at the start of Session 2.
 
 ---
 
-### R5 — Azure SQL Regional Provisioning Restriction *(Known — already encountered)*
-**Likelihood:** High (common on MSDN, Visual Studio, and many EA subscriptions)  
-**Impact:** High — deployment fails with `ProvisioningDisabled` error  
+### R4 — Custom Vision Project Type Mismatch
+**Likelihood:** Low (once — fixed in v13)  
+**Impact:** High — `detect_image` throws `Invalid project type for operation`
 
-**Description:** Azure SQL Server provisioning is restricted in `eastus` (and some other regions) on certain subscription types. The Bicep deployment fails with:  
-`"Provisioning is restricted in this region. Please choose a different region."`
+**Description:** Custom Vision has two distinct project types: **Classification** (image-level labels) and **Object Detection** (bounding box regions per object). Calling `detect_image` on a Classification project, or `classify_image` on an Object Detection project, throws this error.
 
-**Fix (already implemented in this repo):**
-- `infra/main.bicep` has a separate `sqlLocation` parameter (defaults to `eastus2`) independent of the main `location` parameter
-- `scripts/deploy.sh` auto-probes a priority list of regions using `az deployment group what-if` and picks the first available one
-- Probe order: `eastus2 → westus2 → westus3 → centralus → southcentralus → northcentralus → westeurope → northeurope → uksouth → australiaeast → japaneast`
-- If `SQL_LOCATION` is already set in `.env`, that region is tried first (skips the full probe)
-
-**Manual override (fastest fix):** Add `SQL_LOCATION=eastus2` to `.env` before running `deploy.sh`.
-
-**Verified safe regions:** `eastus2`, `westus2`, `westus3`, `centralus`
+**Resolution (implemented):**
+- `setup_custom_vision.py` now explicitly creates a **General (Object Detection)** domain project
+- If it finds an existing Classification project with the same name, it deletes and recreates it as Object Detection
+- `generate_sample_images.py` computes precise bounding boxes from shape geometry and saves them to `sample-images/annotations.json`
+- Images are uploaded with `Region` annotations (not just tag IDs) so the training data is correctly labelled for object detection
 
 ---
 
-### R5b — Azure Subscription Quota Limits
-**Likelihood:** Low–Medium  
-**Impact:** High — services may not deploy or may throttle during demo  
+### R5 — Training Image Count Too Low
+**Likelihood:** Low (once — fixed in v7)  
+**Impact:** High — training throws `Not enough images for training`
 
-**Description:** Some Azure subscriptions (especially free/trial accounts) have limits on the number of Cognitive Services resources, total regions, or compute cores.
+**Description:** Custom Vision F0 requires a minimum of 5 tagged images per class. The original generator produced only 3 per tag. For Object Detection, the quality of bounding box annotations matters as much as quantity.
 
-**Mitigation:**
-- Use a paid (PAYG or EA) Azure subscription for the demo
-- Verify subscription type: `az account show --query "[name, state, tenantId]"`
-- Check cognitive services quota: `az cognitiveservices usage list --location eastus`
+**Resolution (implemented):**
+- `generate_sample_images.py` produces 20 images per tag (80 training images total)
+- Each set has genuine variation: different sizes, positions, colours, and orientations
+- Pre-flight count validation in `setup_custom_vision.py` prints a per-tag summary before attempting training and exits early with a clear fix message if counts are insufficient
 
 ---
 
-### R6 — Secrets Accidentally Committed to Git
+### R6 — Duplicate Image Uploads on Re-run
+**Likelihood:** High (once — fixed in v9)  
+**Impact:** Low — wasted API calls, confusing output
+
+**Description:** The initial dedup logic compared filenames against `original_image_uri` values from the API. These URIs are GUID-based storage paths with no connection to the original filename, so every re-run uploaded all 80 images again.
+
+**Resolution (implemented):**
+- `setup_custom_vision.py` uses `get_tagged_image_count()` per tag and compares against the local count
+- If counts match: skip upload entirely
+- If counts differ: delete existing images for that tag and re-upload clean
+- This is idempotent — safe to run multiple times
+
+---
+
+### R7 — macOS BSD `sed` Incompatibility
+**Likelihood:** High on macOS (once — fixed in v3)  
+**Impact:** High — deploy script failed to write values to `.env`
+
+**Description:** BSD `sed` (macOS default) handles `-i` differently from GNU `sed` (Linux). File paths containing `@` or `.` characters — present in the QA OneDrive path — caused `sed: invalid command code J`.
+
+**Resolution (implemented):**
+- `update_env()` in `deploy.sh` uses an inline Python heredoc instead of `sed -i`
+- Python's file I/O is immune to special characters in paths or values (including `@`, `.`, `+`, `/`, `=` in connection strings)
+
+---
+
+### R8 — Document Intelligence Line-level Confidence is None
+**Likelihood:** High (encountered — fixed in v14)  
+**Impact:** Medium — `TypeError: unsupported format string passed to NoneType`
+
+**Description:** The `prebuilt-read` model returns confidence at the **word** level only. The `lines` array returns `None` for confidence. Formatting `None` with `:.1%` throws a TypeError.
+
+**Resolution (implemented):**
+- `main.py` and `report.py` both check `if conf is not None` before formatting
+- Line display shows `(confidence=n/a)` when the field is absent
+- Word-level confidence is still captured in `document_intel.py` under `result["words"]`
+
+---
+
+### R9 — Secrets Accidentally Committed to Git
 **Likelihood:** Low (with `.gitignore` in place)  
-**Impact:** Critical — Azure keys exposed publicly  
+**Impact:** Critical — Azure keys exposed publicly
 
-**Description:** The `.env` file contains Azure storage connection strings, Cognitive Services keys, and SQL passwords. If committed to a public GitHub repository, these credentials are compromised immediately.
-
-**Mitigation:**
-- `.gitignore` already excludes `.env` — verify it's working: `git status` should not show `.env`
-- Add pre-commit hook to double-check: `scripts/install-hooks.sh` (provided below)
-- Rotate all keys immediately if `.env` is ever accidentally pushed: `az cognitiveservices account keys regenerate ...`
-- Consider Azure Key Vault for any production adaptation of this demo
-
----
-
-### R7 — Network/Firewall Blocks Azure Endpoints
-**Likelihood:** Low–Medium (varies by org)  
-**Impact:** High — all Azure API calls fail  
-
-**Description:** Corporate networks may block outbound HTTPS to `*.cognitiveservices.azure.com`, `*.blob.core.windows.net`, or `*.database.windows.net`.
+**Description:** `.env` contains storage connection strings, Cognitive Services keys, and Cosmos DB primary keys.
 
 **Mitigation:**
-- Test endpoints before the session from the participant network
-- Quick test: `curl -I https://eastus.api.cognitive.microsoft.com/`
-- If blocked, coordinate with IT to whitelist the required domains
-- Alternative: run the demo from Azure Cloud Shell (browser-based, no firewall issues)
-
----
-
-### R8 — Contract / MSA Not Finalised
-**Likelihood:** Known (per order form — terms superseded by SCAN's MSA)  
-**Impact:** Medium — order terminates if agreement not reached  
-
-**Description:** The order form notes: *"These Terms and conditions will be superseded by SCANs MSA when completed. This order will terminate should agreement on terms not be reached."*
-
-**Mitigation:**
-- Prioritise MSA finalisation before deploying production resources
-- For the demo/training context, this does not affect the technical implementation
-- Flag to QA account executive (Brandon Barry) if MSA is not signed before Session 1
+- `.gitignore` excludes `.env` — verify: `git status` should not list `.env`
+- CI workflow (`.github/workflows/ci.yml`) includes a TruffleHog secret scan on every push
+- If `.env` is accidentally pushed: rotate all keys immediately via the Azure Portal
 
 ---
 
 ## Pre-Session Verification Checklist
 
-Run this before each session to catch issues early:
+Run these before each session:
 
 ```bash
-# 1. Azure login
-az account show
+# 1. Azure resources exist
+az resource list --resource-group rg-ai-demo -o table
 
-# 2. Resource group exists
-az group show --name rg-ai-demo
-
-# 3. Storage accessible
-az storage container list --account-name <STORAGE_ACCOUNT_NAME> --auth-mode login
-
-# 4. Custom Vision project exists
+# 2. Custom Vision project is trained and published
 python -c "
 from dotenv import load_dotenv; load_dotenv('.env')
 from azure.cognitiveservices.vision.customvision.training import CustomVisionTrainingClient
@@ -158,13 +143,12 @@ from msrest.authentication import ApiKeyCredentials
 import os
 creds = ApiKeyCredentials(in_headers={'Training-key': os.environ['CUSTOM_VISION_TRAINING_KEY']})
 client = CustomVisionTrainingClient(os.environ['CUSTOM_VISION_TRAINING_ENDPOINT'], creds)
-print([p.name for p in client.get_projects()])
+import os; pid = os.environ['CUSTOM_VISION_PROJECT_ID']
+its = client.get_iterations(pid)
+for it in its:
+    print(f'{it.name}: {it.status}, published={it.publish_name}')
 "
 
-# 5. SQL reachable (allows for cold start)
-python -c "
-from dotenv import load_dotenv; load_dotenv('.env')
-from app.database import DatabaseClient
-db = DatabaseClient(); db.close(); print('SQL OK')
-"
+# 3. Full pipeline smoke test
+python app/main.py --image sample-images/mixed_shapes_and_text.png
 ```
