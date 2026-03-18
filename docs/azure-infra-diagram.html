@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Infrastructure Diagram — AI Demo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    padding: 32px 24px;
+    color: #1a1a2e;
+  }
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1a1a2e;
+    letter-spacing: -0.3px;
+  }
+  .page-header p {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 4px;
+  }
+
+  .diagram-container {
+    max-width: 960px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Resource Group wrapper */
+  .rg-wrapper {
+    border: 2px dashed #9ca3af;
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    background: #fafafa;
+  }
+  .rg-label {
+    position: absolute;
+    top: -14px;
+    left: 20px;
+    background: #fff;
+    padding: 2px 10px;
+    border-radius: 20px;
+    border: 1px solid #d1d5db;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .rg-label svg { flex-shrink: 0; }
+
+  /* Section headers */
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 14px;
+  }
+
+  /* Service card */
+  .service-card {
+    background: #fff;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    cursor: default;
+  }
+  .service-card:hover {
+    box-shadow: 0 4px 16px rgba(0,78,212,0.1);
+    border-color: #93c5fd;
+  }
+  .service-card .icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .service-card .icon-wrap svg { width: 24px; height: 24px; }
+  .service-card .info { flex: 1; min-width: 0; }
+  .service-card .svc-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .service-card .svc-type {
+    font-size: 11.5px;
+    color: #6b7280;
+    margin-top: 2px;
+  }
+  .service-card .svc-tag {
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    white-space: nowrap;
+    margin-top: 6px;
+    display: inline-block;
+  }
+  .tag-free { background: #d1fae5; color: #065f46; }
+  .tag-lrs  { background: #dbeafe; color: #1e40af; }
+  .tag-serverless { background: #ede9fe; color: #4c1d95; }
+  .tag-session { background: #fef3c7; color: #92400e; }
+
+  /* Icon backgrounds */
+  .bg-storage  { background: #e0f7f4; }
+  .bg-cosmos   { background: #e8f4fd; }
+  .bg-ai       { background: #eff6ff; }
+  .bg-doc      { background: #f0fdf4; }
+
+  /* Layout grid */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+  }
+
+  /* Section boxes */
+  .section-box {
+    border-radius: 10px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+  }
+  .section-box.storage-bg  { background: #f0fdfa; border-color: #99f6e4; }
+  .section-box.cosmos-bg   { background: #eff6ff; border-color: #bfdbfe; }
+  .section-box.ai-bg       { background: #f5f3ff; border-color: #ddd6fe; }
+
+  /* Sub-resources */
+  .sub-resource {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px dashed #d1d5db;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sub-resource svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .sub-resource .sub-name { font-size: 12.5px; font-weight: 500; color: #374151; }
+  .sub-resource .sub-desc { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+
+  /* Arrows / connectors in between */
+  .section-gap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 0;
+    color: #9ca3af;
+    font-size: 12px;
+  }
+  .section-gap .line {
+    flex: 1;
+    height: 1px;
+    background: #e5e7eb;
+  }
+
+  /* Outputs section */
+  .outputs-section {
+    margin-top: 28px;
+    padding: 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+  }
+  .outputs-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #6b7280;
+    margin-bottom: 10px;
+  }
+  .outputs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+  }
+  .output-item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 7px;
+    padding: 8px 12px;
+    font-size: 11.5px;
+  }
+  .output-item .out-key { color: #6b7280; }
+  .output-item .out-val { color: #1d4ed8; font-weight: 500; margin-top: 2px; font-family: monospace; }
+
+  /* Legend */
+  .legend {
+    margin-top: 20px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+    color: #6b7280;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .legend-dot.dashed { border: 1.5px dashed #9ca3af; background: none; width: 10px; height: 10px; }
+
+  @media (max-width: 640px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .diagram-container { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Azure Infrastructure — AI Demo</h1>
+  <p>main.bicep · Sessions 4 &amp; 5 · Cost-optimized demo deployment</p>
+</div>
+
+<div class="diagram-container">
+
+  <!-- Resource Group wrapper -->
+  <div class="rg-wrapper">
+
+    <div class="rg-label">
+      <!-- Resource Groups icon -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 18 18"><title>Resource Group</title><g><g><path d="M.5,15.08a.16.16,0,0,0,.08.14l1.16.65L3.7,17a.17.17,0,0,0,.23-.06l.66-1.12a.16.16,0,0,0-.06-.21l-2.3-1.3a.17.17,0,0,1-.08-.14V3.85a.16.16,0,0,1,.08-.14l2.3-1.3a.16.16,0,0,0,.06-.21L3.93,1.08A.17.17,0,0,0,3.7,1L1.78,2.11l-1.2.67a.16.16,0,0,0-.08.14V15.08Z" fill="#949494"/><path d="M2.14,3.77l.06-.06,2.3-1.3a.14.14,0,0,0,.06-.21L3.9,1.08A.15.15,0,0,0,3.68,1L1.75,2.11.56,2.78s-.05,0-.06.06l.9.51Z" fill="#a3a3a3"/><path d="M4.5,15.59l-2.3-1.3a.22.22,0,0,1-.07-.09l-1.62,1,.05,0,1.15.65,2,1.11a.15.15,0,0,0,.22-.06l.66-1.12A.14.14,0,0,0,4.5,15.59Z" fill="#a3a3a3"/></g><path d="M17.5,15.08a.16.16,0,0,1-.08.14l-1.16.65L14.3,17a.17.17,0,0,1-.23-.06l-.66-1.12a.16.16,0,0,1,.06-.21l2.3-1.3a.17.17,0,0,0,.08-.14V3.85a.16.16,0,0,0-.08-.14l-2.3-1.3a.16.16,0,0,1-.06-.21l.66-1.12A.17.17,0,0,1,14.3,1l1.92,1.09,1.2.67a.16.16,0,0,1,.08.14V15.08Z" fill="#949494"/><path d="M15.86,3.77l-.06-.06-2.3-1.3a.14.14,0,0,1-.06-.21l.66-1.12A.15.15,0,0,1,14.32,1l1.93,1.09,1.19.67s0,0,.06.06l-.9.51Z" fill="#a3a3a3"/><path d="M13.5,15.59l2.3-1.3a.22.22,0,0,0,.07-.09l1.62,1,0,0-1.15.65-2,1.11a.15.15,0,0,1-.22-.06l-.66-1.12A.14.14,0,0,1,13.5,15.59Z" fill="#a3a3a3"/><polygon points="14.31 5.93 14.31 12.07 8.99 15.16 8.99 9.01 14.31 5.93" fill="#32bedd"/><polygon points="14.31 5.93 9 9.02 3.68 5.93 9 2.84 14.31 5.93" fill="#9cebff"/><polygon points="8.99 9.02 8.99 15.16 3.68 12.07 3.68 5.93 8.99 9.02" fill="#50e6ff"/><polygon points="3.68 12.07 8.99 9.01 8.99 15.16 3.68 12.07" fill="#9cebff"/><polygon points="14.31 12.07 8.99 9.01 8.99 15.16 14.31 12.07" fill="#50e6ff"/></g></svg>
+      Resource Group
+    </div>
+
+    <!-- ── STORAGE ─────────────────────────────────── -->
+    <div class="section-box storage-bg" style="margin-bottom:16px;">
+      <div class="section-title">Storage</div>
+
+      <div class="service-card">
+        <div class="icon-wrap bg-storage">
+          <!-- Storage Accounts icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 18 18"><defs><linearGradient id="stor-grad" x1="9" y1="15.83" x2="9" y2="5.79" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#b3b3b3"/><stop offset="0.26" stop-color="#c1c1c1"/><stop offset="1" stop-color="#e6e6e6"/></linearGradient></defs><path d="M.5,5.79h17v9.48a.57.57,0,0,1-.57.57H1.07a.57.57,0,0,1-.57-.57V5.79Z" fill="url(#stor-grad)"/><path d="M1.07,2.17H16.93a.57.57,0,0,1,.57.57V5.79H.5V2.73A.57.57,0,0,1,1.07,2.17Z" fill="#37c2b1"/><path d="M2.81,6.89H15.18a.27.27,0,0,1,.26.27v1.4a.27.27,0,0,1-.26.27H2.81a.27.27,0,0,1-.26-.27V7.16A.27.27,0,0,1,2.81,6.89Z" fill="#fff"/><path d="M2.82,9.68H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V10A.27.27,0,0,1,2.82,9.68Z" fill="#37c2b1"/><path d="M2.82,12.5H15.19a.27.27,0,0,1,.26.27v1.41a.27.27,0,0,1-.26.27H2.82a.27.27,0,0,1-.26-.27V12.77A.27.27,0,0,1,2.82,12.5Z" fill="#258277"/></svg>
+        </div>
+        <div class="info">
+          <div class="svc-name">{prefix}stor{unique}</div>
+          <div class="svc-type">Storage Account · StorageV2</div>
+          <span class="svc-tag tag-lrs">Standard_LRS · Hot · TLS 1.2</span>
+        </div>
+      </div>
+
+      <!-- Blob service → container (indented) -->
+      <div style="margin-left:20px;">
+        <div class="sub-resource" style="margin-top:10px;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><path d="M.5,5.79h17v9.48a.57.57,0,0,1-.57.57H1.07a.57.57,0,0,1-.57-.57V5.79Z" fill="#e0f7f4"/><path d="M1.07,2.17H16.93a.57.57,0,0,1,.57.57V5.79H.5V2.73A.57.57,0,0,1,1.07,2.17Z" fill="#0078d4"/><text x="9" y="13" text-anchor="middle" font-size="6" fill="#0078d4" font-weight="bold">blob</text></svg>
+          <div>
+            <div class="sub-name">Blob Service (default)</div>
+            <div class="sub-desc">Microsoft.Storage/storageAccounts/blobServices</div>
+          </div>
+        </div>
+
+        <div class="sub-resource">
+          <!-- Storage Container icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><defs><linearGradient id="cont-g" x1="9" y1="15.799" x2="9" y2="5.316" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#32bedd"/><stop offset="0.775" stop-color="#32d4f5"/></linearGradient></defs><path d="M.544,5.316H17.456v9.918a.565.565,0,0,1-.565.565H1.109a.565.565,0,0,1-.565-.565V5.316Z" fill="url(#cont-g)"/><path d="M1.112,2.2H16.888a.565.565,0,0,1,.565.565v2.55H.547V2.766A.565.565,0,0,1,1.112,2.2Z" fill="#0078d4"/><path d="M13.528,7.347H9.384A.228.228,0,0,1,9.26,7.31L8.077,6.523a.218.218,0,0,0-.123-.038H4.472a.222.222,0,0,0-.222.222v7.315a.221.221,0,0,0,.222.222h9.056a.221.221,0,0,0,.222-.222V7.569A.222.222,0,0,0,13.528,7.347Z" fill="#f78d1e"/><rect x="5.114" y="6.91" width="2.159" height="0.432" rx="0.091" fill="#fff"/><rect x="5.114" y="6.91" width="0.432" height="0.432" rx="0.062" fill="#d15900"/><path d="M13.528,7.337H8.977A.219.219,0,0,0,8.82,7.4l-.732.731a.22.22,0,0,1-.157.066H4.472a.221.221,0,0,0-.222.221v5.591a.221.221,0,0,0,.222.222h9.056a.221.221,0,0,0,.222-.222V7.558A.221.221,0,0,0,13.528,7.337Z" fill="#fff"/></svg>
+          <div>
+            <div class="sub-name">demo-images</div>
+            <div class="sub-desc">Blob Container · No public access</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI SERVICES ──────────────────────────────── -->
+    <div class="section-box ai-bg" style="margin-bottom:16px;">
+      <div class="section-title">Cognitive Services</div>
+      <div class="grid-3">
+
+        <!-- Custom Vision Training -->
+        <div class="service-card">
+          <div class="icon-wrap bg-ai">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24"><defs><linearGradient id="cv-g" x1="8.85" y1="16.668" x2="8.85" y2="1.372" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5ea0ef"/><stop offset="1" stop-color="#0078d4"/></linearGradient></defs><g><path d="M8.85,0a8.85,8.85,0,1,0,1.588,17.553l-.261-.225-.762-.773a.449.449,0,0,1-.087-.507l.505-1.07-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.358.1.925-.474L16.2,9.1a.438.438,0,0,1,.2-.048.448.448,0,0,1,.319.132l.416.418.342.345a.448.448,0,0,1,.123.234,8.95,8.95,0,0,0,.1-1.329A8.85,8.85,0,0,0,8.85,0Z" fill="#0078d4"/><path d="M9.415,16.555a.449.449,0,0,1-.087-.507l.505-1.07-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.358.1.925-.474L16.2,9.1a.366.366,0,0,1,.3-.03c0-.016,0-.032,0-.048A7.648,7.648,0,1,0,8.85,16.668c.217,0,.431-.015.644-.033Z" fill="url(#cv-g)"/><path d="M9.833,14.978l-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.276.078a6.242,6.242,0,1,0-6.2,5.515,6.16,6.16,0,0,0,.946-.08Z" fill="#5ea0ef"/><path d="M8.261,12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h.049a4.147,4.147,0,1,0-4.679,4.777Z" fill="#005ba1"/><circle cx="7.484" cy="7.406" r="1.246" fill="#83b9f9"/><circle cx="8.85" cy="8.977" r="0.553" fill="#83b9f9"/><g><path d="M18,13.772V12.693l-.058-.054-1.1-.373-.285-.743.547-1.134.058-.128-.342-.344L16.4,9.5l-.144.073-1.079.553-.744-.208L13.963,8.71H12.891l-.055.055-.372,1.1-.755.283-1.248-.6L9.7,10.3l.073.142.553,1.078-.308.743-1.3.471V13.82l.154.045,1.152.381.309.743-.59,1.251.762.773.145-.073,1.08-.553.743.308.473,1.3h1.079l.045-.154.381-1.152.735-.309,1.261.59.763-.762-.073-.145-.553-1.08.213-.755Zm-4.545,1a1.515,1.515,0,1,1,1.506-1.524v.009A1.517,1.517,0,0,1,13.455,14.771Z" fill="#50e6ff"/></g></g></svg>
+          </div>
+          <div class="info">
+            <div class="svc-name">{prefix}-vision-train</div>
+            <div class="svc-type">Custom Vision Training</div>
+            <span class="svc-tag tag-free">F0 Free Tier</span>
+          </div>
+        </div>
+
+        <!-- Custom Vision Prediction -->
+        <div class="service-card">
+          <div class="icon-wrap bg-ai">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24"><defs><linearGradient id="cv-g2" x1="8.85" y1="16.668" x2="8.85" y2="1.372" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5ea0ef"/><stop offset="1" stop-color="#0078d4"/></linearGradient></defs><g><path d="M8.85,0a8.85,8.85,0,1,0,1.588,17.553l-.261-.225-.762-.773a.449.449,0,0,1-.087-.507l.505-1.07-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.358.1.925-.474L16.2,9.1a.438.438,0,0,1,.2-.048.448.448,0,0,1,.319.132l.416.418.342.345a.448.448,0,0,1,.123.234,8.95,8.95,0,0,0,.1-1.329A8.85,8.85,0,0,0,8.85,0Z" fill="#0078d4"/><path d="M9.415,16.555a.449.449,0,0,1-.087-.507l.505-1.07-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.358.1.925-.474L16.2,9.1a.366.366,0,0,1,.3-.03c0-.016,0-.032,0-.048A7.648,7.648,0,1,0,8.85,16.668c.217,0,.431-.015.644-.033Z" fill="url(#cv-g2)"/><path d="M9.833,14.978l-.153-.37L8.738,14.3l-.154-.045a.449.449,0,0,1-.323-.431V12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h1.072a.45.45,0,0,1,.419.285l.39,1,.276.078a6.242,6.242,0,1,0-6.2,5.515,6.16,6.16,0,0,0,.946-.08Z" fill="#5ea0ef"/><path d="M8.261,12.738a.448.448,0,0,1,.3-.422l1.118-.4.153-.368-.459-.894L9.3,10.508a.45.45,0,0,1,.084-.524l.764-.756a.449.449,0,0,1,.512-.085l1.074.52.375-.141.3-.9a.444.444,0,0,1,.108-.174l.055-.055a.449.449,0,0,1,.318-.131h.049a4.147,4.147,0,1,0-4.679,4.777Z" fill="#005ba1"/><circle cx="7.484" cy="7.406" r="1.246" fill="#83b9f9"/><circle cx="8.85" cy="8.977" r="0.553" fill="#83b9f9"/><g><path d="M18,13.772V12.693l-.058-.054-1.1-.373-.285-.743.547-1.134.058-.128-.342-.344L16.4,9.5l-.144.073-1.079.553-.744-.208L13.963,8.71H12.891l-.055.055-.372,1.1-.755.283-1.248-.6L9.7,10.3l.073.142.553,1.078-.308.743-1.3.471V13.82l.154.045,1.152.381.309.743-.59,1.251.762.773.145-.073,1.08-.553.743.308.473,1.3h1.079l.045-.154.381-1.152.735-.309,1.261.59.763-.762-.073-.145-.553-1.08.213-.755Zm-4.545,1a1.515,1.515,0,1,1,1.506-1.524v.009A1.517,1.517,0,0,1,13.455,14.771Z" fill="#50e6ff"/></g></g></svg>
+          </div>
+          <div class="info">
+            <div class="svc-name">{prefix}-vision-pred</div>
+            <div class="svc-type">Custom Vision Prediction</div>
+            <span class="svc-tag tag-free">F0 Free Tier</span>
+          </div>
+        </div>
+
+        <!-- Document Intelligence -->
+        <div class="service-card">
+          <div class="icon-wrap bg-doc">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24"><defs><linearGradient id="fr-g" x1="7.822" y1="17.653" x2="7.822" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0078d4"/><stop offset="0.817" stop-color="#5ea0ef"/></linearGradient></defs><g><g><path d="M8.824.132H1.311A.594.594,0,0,0,.718.726v16.2a.594.594,0,0,0,.593.594H14.332a.594.594,0,0,0,.593-.594V6.205a.594.594,0,0,0-.593-.594H10.01a.594.594,0,0,1-.593-.594V.726A.593.593,0,0,0,8.824.132Z" fill="#83b9f9"/><path d="M8.55.89V4.96a1.494,1.494,0,0,0,1.491,1.493h4.1v10.31H1.5V.89H8.55M8.837,0H1.215a.6.6,0,0,0-.6.6V17.05a.6.6,0,0,0,.6.6H14.428a.6.6,0,0,0,.6-.6V6.165a.6.6,0,0,0-.6-.6H10.041a.6.6,0,0,1-.6-.6V.6a.6.6,0,0,0-.6-.6Z" fill="url(#fr-g)"/><path d="M14.8,5.683,9.232.132V4.655a1.022,1.022,0,0,0,1.015,1.028Z" fill="#0078d4"/></g><rect x="2.686" y="8.329" width="9.713" height="1.36" rx="0.567" fill="#fff"/><rect x="2.686" y="11.083" width="9.713" height="1.36" rx="0.567" fill="#fff" opacity="0.8"/><rect x="2.686" y="13.838" width="9.713" height="1.36" rx="0.567" fill="#fff" opacity="0.6"/><g><path d="M12.71,17.787c-2.076,0-3.783-1.6-4.685-4.4A45.578,45.578,0,0,0,6.052,9.118c1.32.014,5.935.063,6.818.063,2.112,0,3.749,2.524,3.749,4.7A3.914,3.914,0,0,1,12.71,17.787Z" fill="#50e6ff"/><path d="M6.4,9.335c1.644.017,5.656.059,6.469.059,1.992,0,3.536,2.41,3.536,4.483a3.7,3.7,0,0,1-3.7,3.7c-1.977,0-3.611-1.55-4.483-4.253A41.272,41.272,0,0,0,6.4,9.335M5.7,8.9s1.739,3.366,2.121,4.55C8.7,16.174,10.433,18,12.71,18a4.123,4.123,0,0,0,4.123-4.123c0-2.277-1.685-4.91-3.963-4.91C11.837,8.967,5.7,8.9,5.7,8.9Z" fill="#50e6ff"/></g><g><circle cx="12.87" cy="13.484" r="4.516" fill="#fff"/><path d="M12.87,9.446a4.038,4.038,0,1,1-4.037,4.038A4.042,4.042,0,0,1,12.87,9.446m0-.479a4.517,4.517,0,1,0,4.517,4.517A4.516,4.516,0,0,0,12.87,8.967Z" fill="#50e6ff"/></g><path d="M12.324,12.9H10.866V11.44h1.458Zm2.551-1.458H13.417V12.9h1.458ZM12.324,14H10.866v1.458h1.458Zm2.551,0H13.417v1.458h1.458Z" fill="#50e6ff"/></g></svg>
+          </div>
+          <div class="info">
+            <div class="svc-name">{prefix}-docintel</div>
+            <div class="svc-type">Document Intelligence</div>
+            <span class="svc-tag tag-free">F0 · FormRecognizer</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── COSMOS DB ─────────────────────────────────── -->
+    <div class="section-box cosmos-bg">
+      <div class="section-title">Database</div>
+
+      <div class="service-card">
+        <div class="icon-wrap bg-cosmos">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24"><defs><radialGradient id="cdb-g" cx="-105.006" cy="-10.409" r="5.954" gradientTransform="translate(117.739 19.644) scale(1.036 1.027)" gradientUnits="userSpaceOnUse"><stop offset="0.183" stop-color="#5ea0ef"/><stop offset="1" stop-color="#0078d4"/></radialGradient><clipPath id="cdb-c"><path d="M14.969,7.53A6.137,6.137,0,1,1,7.574,2.987,6.137,6.137,0,0,1,14.969,7.53Z" fill="none"/></clipPath></defs><path d="M2.954,5.266a.175.175,0,0,1-.176-.176h0A2.012,2.012,0,0,0,.769,3.081a.176.176,0,0,1-.176-.175h0a.176.176,0,0,1,.176-.176A2.012,2.012,0,0,0,2.778.72.175.175,0,0,1,2.954.544h0A.175.175,0,0,1,3.13.72h0A2.012,2.012,0,0,0,5.139,2.729a.175.175,0,0,1,.176.176h0a.175.175,0,0,1-.176.176h0A2.011,2.011,0,0,0,3.13,5.09.177.177,0,0,1,2.954,5.266Z" fill="#50e6ff"/><path d="M15.611,17.456a.141.141,0,0,1-.141-.141h0a1.609,1.609,0,0,0-1.607-1.607.141.141,0,0,1-.141-.14h0a.141.141,0,0,1,.141-.141h0a1.608,1.608,0,0,0,1.607-1.607.141.141,0,0,1,.141-.141h0a.141.141,0,0,1,.141.141h0a1.608,1.608,0,0,0,1.607,1.607.141.141,0,1,1,0,.282h0a1.609,1.609,0,0,0-1.607,1.607A.141.141,0,0,1,15.611,17.456Z" fill="#50e6ff"/><g><path d="M14.969,7.53A6.137,6.137,0,1,1,7.574,2.987,6.137,6.137,0,0,1,14.969,7.53Z" fill="url(#cdb-g)"/><g clip-path="url(#cdb-c)"><path d="M5.709,13.115A1.638,1.638,0,1,0,5.714,9.84,1.307,1.307,0,0,0,5.721,9.7,1.651,1.651,0,0,0,4.06,8.064H2.832a6.251,6.251,0,0,0,1.595,5.051Z" fill="#f2f2f2"/><path d="M15.045,7.815c0-.015,0-.03-.007-.044a5.978,5.978,0,0,0-1.406-2.88,1.825,1.825,0,0,0-.289-.09,1.806,1.806,0,0,0-2.3,1.663,2,2,0,0,0-.2-.013,1.737,1.737,0,0,0-.581,3.374,1.451,1.451,0,0,0,.541.1h2.03A13.453,13.453,0,0,0,15.045,7.815Z" fill="#f2f2f2"/></g></g><path d="M17.191,3.832c-.629-1.047-2.1-1.455-4.155-1.149a14.606,14.606,0,0,0-2.082.452,6.456,6.456,0,0,1,1.528.767c.241-.053.483-.116.715-.151A7.49,7.49,0,0,1,14.3,3.662a2.188,2.188,0,0,1,1.959.725h0c.383.638.06,1.729-.886,3a16.723,16.723,0,0,1-4.749,4.051A16.758,16.758,0,0,1,4.8,13.7c-1.564.234-2.682,0-3.065-.636s-.06-1.73.886-2.995c.117-.157.146-.234.279-.392a6.252,6.252,0,0,1,.026-1.63A11.552,11.552,0,0,0,1.756,9.419C.517,11.076.181,12.566.809,13.613a3.165,3.165,0,0,0,2.9,1.249,8.434,8.434,0,0,0,1.251-.1,17.855,17.855,0,0,0,6.219-2.4,17.808,17.808,0,0,0,5.061-4.332C17.483,6.369,17.819,4.88,17.191,3.832Z" fill="#50e6ff"/></svg>
+        </div>
+        <div class="info">
+          <div class="svc-name">{prefix}-cosmos-{unique}</div>
+          <div class="svc-type">Azure Cosmos DB · NoSQL / GlobalDocumentDB</div>
+          <span class="svc-tag tag-serverless">Serverless · Free Tier · Session Consistency</span>
+        </div>
+      </div>
+
+      <!-- Sub-resources: DB + Container -->
+      <div style="margin-left:20px;">
+        <div class="sub-resource">
+          <!-- Small cosmos DB icon -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="20" height="20"><circle cx="9" cy="9" r="8" fill="#dbeafe"/><text x="9" y="12.5" text-anchor="middle" font-size="7" fill="#1d4ed8" font-weight="bold">DB</text></svg>
+          <div>
+            <div class="sub-name">aidemodb</div>
+            <div class="sub-desc">SQL Database (NoSQL)</div>
+          </div>
+        </div>
+        <div class="sub-resource">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="20" height="20"><rect x="2" y="2" width="14" height="14" rx="3" fill="#ede9fe"/><text x="9" y="12" text-anchor="middle" font-size="6" fill="#7c3aed" font-weight="bold">[ ]</text></svg>
+          <div>
+            <div class="sub-name">pipeline_runs</div>
+            <div class="sub-desc">Container · Partition key: /run_id · Consistent indexing</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── OUTPUTS ──────────────────────────────────── -->
+    <div class="outputs-section">
+      <div class="outputs-title">Bicep Outputs</div>
+      <div class="outputs-grid">
+        <div class="output-item">
+          <div class="out-key">storageAccountName</div>
+          <div class="out-val">{prefix}stor{unique}</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">storageContainerName</div>
+          <div class="out-val">demo-images</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">customVisionTrainingEndpoint</div>
+          <div class="out-val">https://{prefix}-vision-train…</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">customVisionPredictionEndpoint</div>
+          <div class="out-val">https://{prefix}-vision-pred…</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">documentIntelligenceEndpoint</div>
+          <div class="out-val">https://{prefix}-docintel…</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">cosmosEndpoint</div>
+          <div class="out-val">https://{prefix}-cosmos-{unique}…</div>
+        </div>
+        <div class="output-item">
+          <div class="out-key">cosmosAccountName / DB</div>
+          <div class="out-val">{prefix}-cosmos-{unique} / aidemodb</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#d1fae5;border:1.5px solid #6ee7b7;"></div>
+        F0 / Free tier
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ede9fe;border:1.5px solid #c4b5fd;"></div>
+        Serverless
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#dbeafe;border:1.5px solid #93c5fd;"></div>
+        Standard_LRS
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot dashed"></div>
+        Child / sub-resource
+      </div>
+    </div>
+
+  </div><!-- /rg-wrapper -->
+</div><!-- /diagram-container -->
+
+</body>
+</html>

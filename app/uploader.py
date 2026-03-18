@@ -3,7 +3,7 @@ uploader.py — Azure Blob Storage upload
 """
 import os
 from pathlib import Path
-from datetime import datetime
+import datetime
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent.parent / ".env")
@@ -31,7 +31,7 @@ def upload_image(image_path: Path) -> str:
         pass   # Already exists
 
     # Generate a unique blob name using timestamp
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     blob_name = f"{timestamp}_{image_path.name}"
     blob_client = container.get_blob_client(blob_name)
 
