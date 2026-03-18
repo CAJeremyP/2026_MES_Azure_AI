@@ -9,7 +9,7 @@ Falls back gracefully if permissions are missing.
 import os
 import json
 import subprocess
-from datetime import datetime, timedelta
+import datetime
 from dotenv import load_dotenv
 from pathlib import Path
 
@@ -28,11 +28,6 @@ FREE_TIER_INFO = {
         "limit": "500 pages/month",
         "price_over": "$1.50 per 1,000 pages",
     },
-    "Azure SQL Serverless (GP_S_Gen5_1)": {
-        "limit": "No free tier",
-        "price_est": "~$0.000145/vCore-second when active, $0 when paused",
-        "monthly_est": "~$0.50–2.00 for light demo use",
-    },
     "Blob Storage (LRS)": {
         "limit": "5 GB free first year (new accounts)",
         "price_over": "$0.018/GB/month",
@@ -48,8 +43,8 @@ def get_cost_summary() -> dict:
     """
     print("  💰  Fetching Azure cost data...")
 
-    end_date = datetime.utcnow().strftime("%Y-%m-%d")
-    start_date = (datetime.utcnow() - timedelta(days=30)).strftime("%Y-%m-%d")
+    end_date = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d")
+    start_date = (datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
 
     try:
         result = subprocess.run([
@@ -95,6 +90,5 @@ def _print_estimated_costs():
             print(f"       {label}: {v}")
     print()
     print("  💡  All Cognitive Services in this demo use the F0 (free) tier.")
-    print("      SQL Serverless auto-pauses after 1 hour idle.")
-    print("      Estimated total cost for a 1-day demo: $0.50 – $5.00")
+    print("      Estimated total cost for a 1-day demo: $0.50 - $5.00")
     print("      Run teardown.sh immediately after the session to stop charges.")

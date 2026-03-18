@@ -24,7 +24,7 @@ import os
 import sys
 import argparse
 from pathlib import Path
-from datetime import datetime
+import datetime
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).parent.parent
@@ -46,7 +46,7 @@ BANNER = """
 
 def run_pipeline(image_path: Path):
     print(BANNER)
-    run_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    run_id = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     results = {"run_id": run_id, "image_path": str(image_path)}
 
     # ── Step 1: Upload image to Blob Storage ─────────────────
